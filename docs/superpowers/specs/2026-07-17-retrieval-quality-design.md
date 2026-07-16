@@ -64,7 +64,7 @@ Executes dense and sparse searches in parallel:
   ```
   Default `k = 60`. Points appearing in only one list get a partial score from that list alone.
 
-**Fallback:** If BM25 produces fewer than 10 results (index too small), fusion is skipped and dense-only results are used.
+**Fallback:** If BM25 returns fewer than 5 documents with non-zero scores (query terms don't match the index), fusion is skipped and dense-only results are used.
 
 #### 3.2.2 LLM Self-Reranker
 
@@ -82,7 +82,7 @@ Chunks scoring below 0.3 are filtered out. The remaining chunks are sorted by sc
 
 Manages parent-child chunk relationships:
 
-- **During ingestion:** Each document is split into parent chunks (~1024 tokens). Each parent is then split into child chunks (~256 tokens with 32-token overlap). Child chunks are stored in Qdrant with a `parentId` metadata field pointing to their parent.
+- **During ingestion:** Each document is split into parent chunks (~1024 tokens), each embedded and stored in Qdrant. Each parent is then sub-divided into child chunks (~256 tokens with 32-token overlap), also embedded and stored in Qdrant with a `parentId` metadata field pointing to their parent. During retrieval, only child chunks are searched (finer granularity); when a child matches, the parent is looked up from Qdrant by `parentId`.
 - **During retrieval:** When a child chunk matches, the assembler fetches the parent chunk and adjacent siblings (one before, one after if they exist). This provides the LLM with full narrative context around the matched span.
 - **Deduplication:** Parent chunks are deduplicated by ID. Chunks are ordered by their original position in the document to preserve flow.
 
@@ -92,11 +92,11 @@ Manages parent-child chunk relationships:
 
 **Module:** `lib/llamaindex/retriever.ts` (modified)
 
-The existing `retrieveContext()` function becomes the pipeline orchestrator. It calls each layer in sequence:
+The existing `retrieveContext()` function becomes the pipeline orchestrator. It selects which layers to run based on `RETRIEVAL_MODE`:
 
-```
-query → queryPlanner → hybridRetriever → reranker → contextAssembler → context string
-```
+- **`simple`:** Direct dense search only (current behavior, no changes)
+- **`layered`:** Multi-query dense search → hybrid fusion → context assembler
+- **`agentic`:** Query planner → multi-query dense search → hybrid fusion → reranker → context assembler
 
 The function signature remains unchanged for backward compatibility with the chat route.
 
@@ -106,7 +106,7 @@ New environment variables:
 
 | Variable | Default | Description |
 |---|---|---|
-| `RETRIEVAL_MODE` | `simple` | `simple` (current behavior), `layered` (dense + hybrid), or `agentic` (full pipeline) |
+| `RETRIEVAL_MODE` | `simple` | `simple` (current single-query dense search), `layered` (multi-query dense + hybrid fusion + parent-child context), or `agentic` (full pipeline with query planner + reranking) |
 | `RERANK_MODEL` | (uses default LLM) | Model to use for reranking; can be a cheaper model than the chat model |
 | `HYBRID_FUSION_K` | `60` | RRF constant; lower values weight top ranks more heavily |
 | `PARENT_CHUNK_SIZE` | `1024` | Parent chunk token size during ingestion |

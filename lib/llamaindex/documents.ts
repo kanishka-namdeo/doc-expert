@@ -25,7 +25,7 @@ export async function listDocuments(orgId: string, userId?: string): Promise<Doc
       ],
     };
     if (userId) {
-      filter.must.push({ key: 'userId', match: { value: userId } });
+      filter.must.push({ key: 'accessControlList', match: { value: userId } });
     }
 
     const result = await vectorStore.getClient().scroll('documents', {

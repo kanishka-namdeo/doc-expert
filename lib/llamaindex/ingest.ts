@@ -104,6 +104,7 @@ export async function ingestBuffer(
           uploadedAt: new Date().toISOString(),
           userId,
           orgId,
+          accessControlList: [userId],
           ...metadata,
         };
       }

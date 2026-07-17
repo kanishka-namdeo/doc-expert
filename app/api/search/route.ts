@@ -126,8 +126,9 @@ export async function GET(request: NextRequest) {
           body: JSON.stringify({
             filter: {
               must: [
-                { key: 'userId', match: { value: userId } },
                 { key: 'orgId', match: { value: orgId } },
+                { key: 'status', match: { value: 'approved' } },
+                { key: 'accessControlList', match: { value: userId } },
               ],
             },
             limit,

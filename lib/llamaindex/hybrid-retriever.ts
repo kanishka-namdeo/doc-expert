@@ -25,7 +25,7 @@ function buildFilter(orgId: string, userId?: string, collectionId?: string) {
     { key: 'status', match: { value: 'approved' } },
   ];
   if (userId) {
-    conditions.push({ key: 'userId', match: { value: userId } });
+    conditions.push({ key: 'accessControlList', match: { value: userId } });
   }
   if (collectionId) {
     conditions.push({ key: 'collectionId', match: { value: collectionId } });

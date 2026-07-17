@@ -115,7 +115,7 @@ These are the broken interactions that the navigation shell alone doesn't solve.
 **Fix:**
 - Add filter tabs (Owned / Shared with me / Shared by me) to the document sheet in `ChatHeader`, matching the `/documents` page
 - Add a "View all documents" link at the bottom of the sheet that navigates to `/documents`
-- Alternatively: replace the sheet with a direct link to `/documents` since the page already has full functionality
+- This gives users full document discoverability without leaving the chat context
 
 ### 2d. "Shared by me" Access Badge
 
@@ -123,8 +123,9 @@ These are the broken interactions that the navigation shell alone doesn't solve.
 
 **Fix:**
 - Query `documentPermission` for each granted document to get the actual recipient and permission level
-- Return a richer response: `{ documentId, fileName, sharedWith: [{ email, permission }] }` or at minimum show the highest permission level granted
-- Display a "Shared" badge with the count of people it's shared with, or show the top permission level
+- Return a richer response: `{ documentId, fileName, sharedWith: [{ email, permission }] }`
+- Display a "Shared" badge showing the count of people it's shared with (e.g., "Shared with 3")
+- When hovering over the badge, show a tooltip with the list of users and their permission levels
 
 ---
 

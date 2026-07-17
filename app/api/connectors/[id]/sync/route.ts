@@ -55,6 +55,7 @@ export async function POST(
           {
             id: account.id,
             userId: account.userId,
+            orgId: account.orgId ?? '',
             connectorId: account.connectorId,
             accessToken: account.accessToken,
             refreshToken: account.refreshToken,

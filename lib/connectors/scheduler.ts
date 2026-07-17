@@ -50,7 +50,12 @@ async function runScheduledSyncs(): Promise<void> {
       }
 
       try {
-        await runSync(connector, account);
+        const accountOrgId = account.orgId ?? '';
+        if (!accountOrgId) {
+          logger.warn({ connectorId: account.connectorId, userId: account.userId }, 'Account has no orgId, skipping');
+          continue;
+        }
+        await runSync(connector, { ...account, orgId: accountOrgId });
       } catch (err) {
         logger.error(
           { err, connectorId: account.connectorId, userId: account.userId },

@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
           const result = await ingestDocument(
             file!,
             userId,
+            orgId,
             (progress) => {
               controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(progress)}\n\n`));
             },

@@ -4,6 +4,7 @@ export interface QdrantPointPayload {
   fileName: string;
   uploadedAt: string;
   userId: string;
+  orgId: string;
   chunkIndex: number;
   source?: string; // 'upload' | 'google-drive' | 'microsoft-365'
   /** Node ID of the parent chunk (set on child points only) */
@@ -12,6 +13,8 @@ export interface QdrantPointPayload {
   isParent?: boolean;
   /** Index among siblings sharing the same parent (0-based) */
   siblingIndex?: number;
+  /** Access control list - user IDs with permission to access this document */
+  accessControlList: string[];
 }
 
 export interface Source {
@@ -50,9 +53,11 @@ export interface CandidateChunk {
   uploadedAt: string;
   documentId: string;
   userId: string;
+  orgId: string;
   chunkIndex: number;
   score: number;
   parentId?: string;
   isParent?: boolean;
   siblingIndex?: number;
+  accessControlList?: string[];
 }

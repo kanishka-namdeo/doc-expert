@@ -69,6 +69,7 @@ export async function runSync(
   account: {
     id: string;
     userId: string;
+    orgId: string;
     connectorId: string;
     accessToken: string;
     refreshToken?: string | null;
@@ -188,7 +189,7 @@ export async function runSync(
 async function processRemoteDocument(
   connector: Connector,
   tokens: OAuthTokens,
-  account: { id: string; userId: string; connectorId: string },
+  account: { id: string; userId: string; orgId: string; connectorId: string },
   remote: { id: string; name: string; mimeType: string; size: number; createdAt: string; modifiedAt: string; webUrl?: string },
   stats: SyncStats,
 ): Promise<void> {
@@ -228,6 +229,7 @@ async function processRemoteDocument(
       mimeType,
       fileName,
       account.userId,
+      account.orgId,
       { source, externalId, webUrl: remote.webUrl },
     );
 
@@ -259,12 +261,14 @@ async function processRemoteDocument(
       mimeType,
       fileName,
       account.userId,
+      account.orgId,
       { source, externalId, webUrl: remote.webUrl },
     );
 
     await db.insert(document).values({
       id: result.documentId,
       userId: account.userId,
+      orgId: account.orgId,
       fileName,
       mediaType: mimeType,
       fileSize: buffer.length,
@@ -292,6 +296,7 @@ export async function runDeltaSync(
   account: {
     id: string;
     userId: string;
+    orgId: string;
     connectorId: string;
     accessToken: string;
     refreshToken?: string | null;
@@ -362,6 +367,7 @@ export async function runDeltaSync(
             mimeType,
             fileName,
             account.userId,
+            account.orgId,
             { source: connector.id, externalId: delta.externalId },
             undefined,
             existing.id,
@@ -373,11 +379,13 @@ export async function runDeltaSync(
             mimeType,
             fileName,
             account.userId,
+            account.orgId,
             { source: connector.id, externalId: delta.externalId },
           );
           await db.insert(document).values({
             id: result.documentId,
             userId: account.userId,
+            orgId: account.orgId,
             fileName,
             mediaType: mimeType,
             fileSize: buffer.length,

@@ -46,6 +46,7 @@ function getReaderForMimeType(mimeType: string) {
 
 export interface IngestBufferOptions {
   userId: string;
+  orgId: string;
   fileName: string;
   mimeType: string;
   collectionId?: string;
@@ -58,6 +59,7 @@ export async function ingestBuffer(
   mimeType: string,
   fileName: string,
   userId: string,
+  orgId: string,
   metadata?: Record<string, unknown>,
   onProgress?: (progress: IngestProgress) => void,
   existingDocumentId?: string,
@@ -101,6 +103,7 @@ export async function ingestBuffer(
           fileName,
           uploadedAt: new Date().toISOString(),
           userId,
+          orgId,
           ...metadata,
         };
       }
@@ -307,6 +310,7 @@ export async function ingestBuffer(
 export async function ingestDocument(
   file: File,
   userId: string,
+  orgId: string,
   onProgress?: (progress: IngestProgress) => void,
   collectionId?: string,
   existingDocumentId?: string,
@@ -317,6 +321,7 @@ export async function ingestDocument(
     file.type,
     file.name,
     userId,
+    orgId,
     collectionId ? { collectionId } : undefined,
     onProgress,
     existingDocumentId,

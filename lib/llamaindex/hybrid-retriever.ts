@@ -19,16 +19,16 @@ interface QdrantSearchPoint {
   payload: Record<string, unknown>;
 }
 
-function buildFilter(userId?: string, collectionId?: string) {
+function buildFilter(orgId: string, userId?: string, collectionId?: string) {
   const conditions: Array<{ key: string; match: { value: unknown } }> = [
-    { key: 'userId', match: { value: userId } },
+    { key: 'orgId', match: { value: orgId } },
     { key: 'status', match: { value: 'approved' } },
   ];
+  if (userId) {
+    conditions.push({ key: 'userId', match: { value: userId } });
+  }
   if (collectionId) {
     conditions.push({ key: 'collectionId', match: { value: collectionId } });
-  }
-  if (!userId) {
-    conditions.shift();
   }
   return conditions.length > 0 ? { must: conditions } : undefined;
 }
@@ -42,11 +42,13 @@ function payloadToCandidate(point: QdrantSearchPoint): CandidateChunk {
     uploadedAt: String(payload.uploadedAt ?? ''),
     documentId: String(payload.documentId ?? ''),
     userId: String(payload.userId ?? ''),
+    orgId: String(payload.orgId ?? ''),
     chunkIndex: Number(payload.chunkIndex ?? 0),
     score: point.score,
     parentId: payload.parentId ? String(payload.parentId) : undefined,
     isParent: Boolean(payload.isParent),
     siblingIndex: payload.siblingIndex !== undefined ? Number(payload.siblingIndex) : undefined,
+    accessControlList: Array.isArray(payload.accessControlList) ? payload.accessControlList as string[] : undefined,
   };
 }
 
@@ -143,6 +145,7 @@ async function denseSearch(
 }
 
 export interface HybridRetrievalOptions {
+  orgId: string;
   userId?: string;
   collectionId?: string;
 }
@@ -150,12 +153,12 @@ export interface HybridRetrievalOptions {
 export async function hybridRetrieve(
   queries: string[],
   topK: number,
-  options: HybridRetrievalOptions = {}
+  options: HybridRetrievalOptions
 ): Promise<CandidateChunk[]> {
-  const { userId, collectionId } = options;
+  const { orgId, userId, collectionId } = options;
   const qdrantUrl = process.env.QDRANT_URL ?? 'http://localhost:6333';
   const vectorStore = new QdrantVectorStore({ url: qdrantUrl, collectionName: 'documents' });
-  const filter = buildFilter(userId, collectionId);
+  const filter = buildFilter(orgId, userId, collectionId);
 
   // --- Dense search: embed each query, merge by highest score ---
   const denseResults = new Map<string, CandidateChunk>();

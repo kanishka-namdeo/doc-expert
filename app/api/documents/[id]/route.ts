@@ -147,7 +147,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const result = await deleteDocument(documentId);
+    const result = await deleteDocument(documentId, orgId);
 
     // Log audit event
     await logAuditEvent(

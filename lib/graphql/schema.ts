@@ -204,8 +204,9 @@ builder.queryType({
       type: ['Document'],
       resolve: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
         if (!ctx.userId) throw new Error('Unauthorized');
+        if (!ctx.orgId) return [];
         try {
-          return await listDocuments(ctx.userId);
+          return await listDocuments(ctx.orgId, ctx.userId);
         } catch (error) {
           logger.error({ error }, 'Failed to list documents');
           return [];
@@ -237,7 +238,7 @@ builder.queryType({
           
           // Batch fetch all documents by their IDs in a single operation
           const docIds = Array.from(docMap.keys());
-          const docsById = await getDocumentsByIds(docIds, ctx.userId);
+          const docsById = await getDocumentsByIds(docIds, ctx.orgId ?? '', ctx.userId);
           
           // Map results to documents without N+1 queries
           const results: Array<{ chunks: Array<{ text: string; score: number }>; document: DocumentInfo }> = [];

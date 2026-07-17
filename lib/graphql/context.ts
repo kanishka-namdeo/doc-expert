@@ -10,6 +10,7 @@ type MessageType = typeof message.$inferSelect;
 
 export interface GraphQLContext {
   userId: string | null;
+  orgId: string | null;
   db: typeof db;
   loaders: {
     userById: DataLoader<string, UserType | null>;
@@ -21,6 +22,14 @@ export interface GraphQLContext {
 export async function createContext(req: Request): Promise<GraphQLContext> {
   const session = await auth.api.getSession({ headers: req.headers });
   const userId = session?.user?.id || null;
+  let orgId: string | null = null;
+  if (userId) {
+    const userRecord = await db.query.user.findFirst({
+      where: eq(user.id, userId),
+      columns: { orgId: true },
+    });
+    orgId = userRecord?.orgId ?? null;
+  }
 
   const loaders = {
     userById: new DataLoader(async (ids: readonly string[]) => {
@@ -37,5 +46,5 @@ export async function createContext(req: Request): Promise<GraphQLContext> {
     }),
   };
 
-  return { userId, db, loaders };
+  return { userId, orgId, db, loaders };
 }

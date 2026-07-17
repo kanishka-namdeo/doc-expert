@@ -84,7 +84,7 @@ export async function POST(req: Request) {
     let context = '';
     let sources: Array<{ nodeId: string; fileName: string; text: string; score: number }> = [];
     try {
-      const retrievalResult = await retrieveContext(query, 5, userId, collectionId ?? undefined);
+      const retrievalResult = await retrieveContext(query, 5, orgId, userId, collectionId ?? undefined);
       context = retrievalResult.context;
       sources = retrievalResult.sources;
     } catch (error) {
@@ -173,8 +173,8 @@ Keep each under 60 characters. Do not include any other text after the SUGGESTIO
           system: systemPrompt,
           messages: modelMessages,
           tools: sources.length > 0 ? undefined : {
-            documentSearch: documentSearchTool(userId),
-            listDocuments: listDocumentsTool(userId),
+            documentSearch: documentSearchTool(orgId, userId),
+            listDocuments: listDocumentsTool(orgId, userId),
           },
         });
 

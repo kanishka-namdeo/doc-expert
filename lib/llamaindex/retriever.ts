@@ -16,16 +16,16 @@ const RETRIEVAL_TIMEOUT_MS = parseInt(process.env.RETRIEVAL_TIMEOUT_MS ?? '15000
 
 const ollama = createOllama({ baseURL: (process.env.OLLAMA_URL ?? 'http://localhost:11434') + '/api' });
 
-function buildFilter(userId?: string, collectionId?: string) {
+function buildFilter(orgId: string, userId?: string, collectionId?: string) {
   const filterConditions: Array<{ key: string; match: { value: unknown } }> = [
-    { key: 'userId', match: { value: userId } },
+    { key: 'orgId', match: { value: orgId } },
     { key: 'status', match: { value: 'approved' } },
   ];
+  if (userId) {
+    filterConditions.push({ key: 'userId', match: { value: userId } });
+  }
   if (collectionId) {
     filterConditions.push({ key: 'collectionId', match: { value: collectionId } });
-  }
-  if (!userId) {
-    filterConditions.shift();
   }
   return filterConditions.length > 0 ? { must: filterConditions } : undefined;
 }
@@ -33,6 +33,7 @@ function buildFilter(userId?: string, collectionId?: string) {
 async function simpleSearch(
   query: string,
   topK: number,
+  orgId: string,
   userId?: string,
   collectionId?: string
 ): Promise<{ context: string; sources: Source[] }> {
@@ -47,7 +48,7 @@ async function simpleSearch(
     value: query,
   });
 
-  const filter = buildFilter(userId, collectionId);
+  const filter = buildFilter(orgId, userId, collectionId);
 
   const searchResults = await retry(
     async () => {
@@ -102,6 +103,7 @@ async function simpleSearch(
 async function layeredSearch(
   query: string,
   topK: number,
+  orgId: string,
   userId?: string,
   collectionId?: string
 ): Promise<{ context: string; sources: Source[] }> {
@@ -110,7 +112,7 @@ async function layeredSearch(
   // Multi-query dense → hybrid fusion
   const queries = [query];
   logger.debug({ layer: 'hybrid', queryLength: query.length }, 'Layer entry: hybrid retrieval');
-  const hybridResults = await hybridRetrieve(queries, topK, { userId, collectionId });
+  const hybridResults = await hybridRetrieve(queries, topK, { orgId, userId, collectionId });
   logger.debug({ layer: 'hybrid', duration: Date.now() - t0, resultCount: hybridResults.length }, 'Layer exit: hybrid retrieval');
 
   if (hybridResults.length === 0) {
@@ -128,6 +130,7 @@ async function layeredSearch(
 async function agenticSearch(
   query: string,
   topK: number,
+  orgId: string,
   userId?: string,
   collectionId?: string
 ): Promise<{ context: string; sources: Source[] }> {
@@ -148,7 +151,7 @@ async function agenticSearch(
   logger.debug({ layer: 'hybrid', duration: Date.now() - t0 }, 'Layer entry: hybrid retrieval');
   let hybridResults: CandidateChunk[] = [];
   try {
-    hybridResults = await hybridRetrieve(plan.queries, topK, { userId, collectionId });
+    hybridResults = await hybridRetrieve(plan.queries, topK, { orgId, userId, collectionId });
   } catch (error) {
     logger.warn({ err: error }, 'Hybrid retrieval failed, falling back to simple search');
   }
@@ -184,11 +187,12 @@ async function agenticSearch(
 export async function retrieveContext(
   query: string,
   topK: number = 5,
+  orgId: string,
   userId?: string,
   collectionId?: string
 ): Promise<{ context: string; sources: Source[] }> {
   const mode = RETRIEVAL_MODE;
-  logger.info({ mode, queryLength: query.length, topK, userId }, 'Retrieval started');
+  logger.info({ mode, queryLength: query.length, topK, orgId, userId }, 'Retrieval started');
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => reject(new Error(`Retrieval timeout after ${RETRIEVAL_TIMEOUT_MS}ms`)), RETRIEVAL_TIMEOUT_MS);
@@ -197,12 +201,12 @@ export async function retrieveContext(
   const pipelinePromise = (async () => {
     switch (mode) {
       case 'layered':
-        return await layeredSearch(query, topK, userId, collectionId);
+        return await layeredSearch(query, topK, orgId, userId, collectionId);
       case 'agentic':
-        return await agenticSearch(query, topK, userId, collectionId);
+        return await agenticSearch(query, topK, orgId, userId, collectionId);
       case 'simple':
       default:
-        return await simpleSearch(query, topK, userId, collectionId);
+        return await simpleSearch(query, topK, orgId, userId, collectionId);
     }
   })();
 

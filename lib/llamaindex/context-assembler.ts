@@ -24,11 +24,13 @@ function payloadToCandidate(point: QdrantPoint): CandidateChunk {
     uploadedAt: String(payload.uploadedAt ?? ''),
     documentId: String(payload.documentId ?? ''),
     userId: String(payload.userId ?? ''),
+    orgId: String(payload.orgId ?? ''),
     chunkIndex: Number(payload.chunkIndex ?? 0),
     score: 0,
     parentId: payload.parentId ? String(payload.parentId) : undefined,
     isParent: Boolean(payload.isParent),
     siblingIndex: payload.siblingIndex !== undefined ? Number(payload.siblingIndex) : undefined,
+    accessControlList: Array.isArray(payload.accessControlList) ? payload.accessControlList as string[] : undefined,
   };
 }
 
@@ -64,6 +66,7 @@ async function lookupParent(
 async function lookupSiblings(
   parentId: string,
   documentId: string,
+  orgId: string,
   currentSiblingIndex: number | undefined
 ): Promise<CandidateChunk[]> {
   if (currentSiblingIndex === undefined) return [];
@@ -77,6 +80,7 @@ async function lookupSiblings(
             must: [
               { key: 'parentId', match: { value: parentId } },
               { key: 'documentId', match: { value: documentId } },
+              { key: 'orgId', match: { value: orgId } },
               { key: 'isParent', match: { value: false } },
             ],
           },
@@ -146,6 +150,7 @@ export async function assembleContext(
         const siblings = await lookupSiblings(
           child.parentId,
           child.documentId,
+          child.orgId,
           child.siblingIndex
         );
         for (const sib of siblings) {

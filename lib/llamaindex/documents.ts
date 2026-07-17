@@ -4,7 +4,7 @@ import type { DocumentInfo } from '@/lib/types/qdrant';
 
 const logger = getLogger('llamaindex/documents');
 
-export async function listDocuments(userId?: string): Promise<DocumentInfo[]> {
+export async function listDocuments(orgId: string, userId?: string): Promise<DocumentInfo[]> {
   const qdrantUrl = process.env.QDRANT_URL ?? 'http://localhost:6333';
   
   const vectorStore = new QdrantVectorStore({
@@ -18,9 +18,15 @@ export async function listDocuments(userId?: string): Promise<DocumentInfo[]> {
   let hasMore = true;
   
   while (hasMore) {
-    const filter = userId ? {
-      must: [{ key: 'userId', match: { value: userId } }],
-    } : undefined;
+    const filter: { must: Array<{ key: string; match: { value: unknown } }> } = {
+      must: [
+        { key: 'orgId', match: { value: orgId } },
+        { key: 'status', match: { value: 'approved' } },
+      ],
+    };
+    if (userId) {
+      filter.must.push({ key: 'userId', match: { value: userId } });
+    }
 
     const result = await vectorStore.getClient().scroll('documents', {
       limit: 100,
@@ -61,6 +67,7 @@ export async function listDocuments(userId?: string): Promise<DocumentInfo[]> {
 
 export async function getDocumentsByIds(
   documentIds: string[],
+  orgId: string,
   userId?: string,
 ): Promise<Map<string, DocumentInfo>> {
   if (documentIds.length === 0) return new Map();
@@ -75,6 +82,7 @@ export async function getDocumentsByIds(
   const filter: Record<string, unknown> = {
     must: [
       { key: 'documentId', match: { any: documentIds } },
+      { key: 'orgId', match: { value: orgId } },
       ...(userId ? [{ key: 'userId', match: { value: userId } }] : []),
     ],
   };
@@ -129,7 +137,7 @@ export async function getDocumentsByIds(
   return documents;
 }
 
-export async function deleteDocument(documentId: string): Promise<{ deletedCount: number; fileName: string }> {
+export async function deleteDocument(documentId: string, orgId: string): Promise<{ deletedCount: number; fileName: string }> {
   const qdrantUrl = process.env.QDRANT_URL ?? 'http://localhost:6333';
   
   const vectorStore = new QdrantVectorStore({
@@ -140,7 +148,10 @@ export async function deleteDocument(documentId: string): Promise<{ deletedCount
   // First, query to get the fileName
   const scrollResult = await vectorStore.getClient().scroll('documents', {
     filter: {
-      must: [{ key: 'documentId', match: { value: documentId } }],
+      must: [
+        { key: 'documentId', match: { value: documentId } },
+        { key: 'orgId', match: { value: orgId } },
+      ],
     },
     with_payload: true,
     with_vector: false,

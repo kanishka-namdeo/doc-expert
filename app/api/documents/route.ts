@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     let documents: Array<{ documentId: string; fileName: string; uploadedAt: string; chunkCount: number }>;
 
     try {
-      documents = await listDocuments(userId);
+      documents = await listDocuments(orgId, userId);
       // Sort by upload date, most recent first
       documents.sort((a, b) =>
         new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()

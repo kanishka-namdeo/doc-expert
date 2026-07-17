@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnector } from '@/lib/connectors/registry';
 import { randomUUID } from 'node:crypto';
-import { auth } from '@/lib/auth';
+import { getAuthSession } from '@/lib/auth/session';
 
 export async function GET(request: NextRequest) {
-  const session = await auth.api.getSession({ headers: request.headers });
-  const isDev = process.env.NODE_ENV === 'development';
-  if (!session && !isDev) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const session = await getAuthSession({ headers: request.headers });
+  if (session.error) return session.error;
+
+  const { userId, orgId } = session;
 
   const connectorId = request.nextUrl.searchParams.get('connectorId');
   if (!connectorId) {

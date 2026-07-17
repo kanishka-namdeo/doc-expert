@@ -22,7 +22,7 @@ export async function GET(request: Request) {
       .where(and(eq(conversation.userId, userId), eq(conversation.orgId, orgId)))
       .orderBy(desc(conversation.updatedAt));
 
-    // Get shared conversations (shared with this user)
+    // Get shared conversations (shared with this user) - scoped by orgId
     const shared = await db
       .select({
         conversation: conversation,
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       })
       .from(conversationShare)
       .innerJoin(conversation, eq(conversationShare.conversationId, conversation.id))
-      .where(eq(conversationShare.userId, userId))
+      .where(and(eq(conversationShare.userId, userId), eq(conversation.orgId, orgId)))
       .orderBy(desc(conversation.updatedAt));
 
     // Merge, avoiding duplicates

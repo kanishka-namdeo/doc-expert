@@ -1,11 +1,12 @@
-import { auth } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import { db } from '@/lib/db';
 import { conversation, conversationShare, user } from '@/lib/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { getLogger } from '@/lib/logger';
 import { z } from 'zod';
 import { logAuditEvent } from '@/lib/audit';
+import { getAuthSession } from '@/lib/auth/session';
 
 const logger = getLogger('api/conversations/[id]/share');
 
@@ -19,25 +20,33 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth.api.getSession({ headers: request.headers });
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const session = await getAuthSession({ headers: request.headers });
+  if (session.error) return session.error;
+
+  const { userId, orgId } = session;
 
   try {
     const { id } = await params;
     const body = await request.json();
     const { action, targetUserId, permission } = shareSchema.parse(body);
-    const currentUserId = session.user.id;
 
-    // Verify ownership
+    // Verify ownership with orgId check
     const [conv] = await db
       .select()
       .from(conversation)
-      .where(eq(conversation.id, id));
+      .where(and(eq(conversation.id, id), eq(conversation.userId, userId), eq(conversation.orgId, orgId)));
 
-    if (!conv || conv.userId !== currentUserId) {
+    if (!conv) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Verify target user is in the same org (prevent cross-org sharing)
+    const targetUser = await db.query.user.findFirst({
+      where: eq(user.id, targetUserId),
+      columns: { orgId: true },
+    });
+    if (!targetUser || targetUser.orgId !== orgId) {
+      return NextResponse.json({ error: 'Cannot share with users outside your organization' }, { status: 400 });
     }
 
     if (action === 'share') {
@@ -63,17 +72,18 @@ export async function POST(
           id: crypto.randomUUID(),
           conversationId: id,
           userId: targetUserId,
-          sharedByUserId: currentUserId,
+          sharedByUserId: userId,
           permission,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
       }
 
-      await logAuditEvent(currentUserId, 'conversation.share', 'conversation', {
+      await logAuditEvent(userId, 'conversation.share', 'conversation', {
         conversationId: id,
         targetUserId,
         permission,
+        orgId,
       });
     } else {
       // Unshare
@@ -86,9 +96,10 @@ export async function POST(
           )
         );
 
-      await logAuditEvent(currentUserId, 'conversation.unshare', 'conversation', {
+      await logAuditEvent(userId, 'conversation.unshare', 'conversation', {
         conversationId: id,
         targetUserId,
+        orgId,
       });
     }
 
@@ -106,33 +117,32 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth.api.getSession({ headers: request.headers });
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const session = await getAuthSession({ headers: request.headers });
+  if (session.error) return session.error;
+
+  const { userId, orgId } = session;
 
   try {
     const { id } = await params;
-    const currentUserId = session.user.id;
 
-    // Verify ownership or shared access
+    // Verify ownership or shared access with orgId check
     const [conv] = await db
       .select()
       .from(conversation)
-      .where(eq(conversation.id, id));
+      .where(and(eq(conversation.id, id), eq(conversation.orgId, orgId)));
 
     if (!conv) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
-    if (conv.userId !== currentUserId) {
+    if (conv.userId !== userId) {
       const share = await db
         .select()
         .from(conversationShare)
         .where(
           and(
             eq(conversationShare.conversationId, id),
-            eq(conversationShare.userId, currentUserId)
+            eq(conversationShare.userId, userId)
           )
         );
       if (share.length === 0) {

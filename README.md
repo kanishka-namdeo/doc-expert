@@ -188,6 +188,67 @@ docker build -t doc-expert .
 docker run -p 3000:3000 --env-file .env doc-expert
 ```
 
+## Enterprise Features
+
+### Multi-Tenancy
+
+Doc Expert supports multi-tenant deployments where each organization's data is fully isolated. All database records are scoped by `orgId`, and the middleware enforces organizational boundaries on every request. Users in one organization cannot access documents, conversations, or collections belonging to another.
+
+- **Shared database, isolated data** — all tables include an `orgId` column; queries are scoped at the API and retrieval layers
+- **Organization resolution** — the middleware attaches `X-Org-Id` to every authenticated request based on the user's organization membership
+- **Cross-org access returns 404** — users see no indication that data outside their organization exists
+
+### SSO Configuration
+
+SAML 2.0 single sign-on is available for organizations that want centralized identity management.
+
+**To configure SSO:**
+
+1. Navigate to **Admin > SSO** (admin role required)
+2. Select **SAML 2.0** as the protocol
+3. Upload your IdP metadata XML file or paste the metadata URL
+4. Configure auto-provisioning:
+   - **Enabled** — new users who authenticate via SSO are automatically created with the default role
+   - **Disabled** — SSO users must be pre-created by an admin
+5. Set the **default role** for auto-provisioned users (viewer, editor, or admin)
+6. Click **Test Connection** to validate the IdP metadata before saving
+7. Click **Save** to enable SSO for your organization
+
+Once SSO is enabled, users with matching email domains are automatically redirected to the IdP login page. The domain mapping is derived from the IdP metadata entity ID.
+
+### Document Sharing Workflow
+
+Document owners and admins can share documents with individuals or groups within their organization.
+
+**To share a document:**
+
+1. Open the document viewer
+2. Click the **Share** button in the header
+3. Search for a user by email or a group by name (org-scoped only)
+4. Select a permission level: **Read**, **Write**, or **Admin**
+5. Click **Add** to grant access
+
+**Permission levels:**
+
+| Level | Capabilities |
+|-------|-------------|
+| **Read** | View document, ask questions, see citations |
+| **Write** | All read capabilities plus edit document metadata |
+| **Admin** | All write capabilities plus grant/revoke permissions for others |
+
+To revoke access, click the **Revoke** button next to any permission entry in the share dialog. The document's access control list is re-indexed immediately so retrieval reflects the change.
+
+### Group Management
+
+Groups allow admins to manage permissions at scale by assigning document access to a group rather than to individual users.
+
+- **Create groups** at **Admin > Groups** — provide a name and optional description
+- **Add members** from the group detail page by searching users within the organization
+- **Remove members** individually; ACLs for all documents where the group has permission are updated automatically
+- **Delete groups** — all permissions granted through the group are revoked and affected document ACLs are re-indexed
+
+Groups are organization-scoped; members of one organization's groups cannot be shared with another organization.
+
 ## License
 
 Private - not for distribution.

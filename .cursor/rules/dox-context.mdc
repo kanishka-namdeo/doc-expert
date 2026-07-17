@@ -1,0 +1,33 @@
+---
+description: Always include AGENTS.md files in context for every task
+alwaysApply: true
+---
+
+# DOX Context Rule
+
+Before starting any task, read the applicable `AGENTS.md` files for the directories you will be working in.
+
+## Rule
+
+1. Read the root `AGENTS.md` at the project root
+2. Identify every file or folder you expect to touch
+3. Walk from the repository root to each target path
+4. Read every `AGENTS.md` found along each route
+5. If a parent `AGENTS.md` lists a child `AGENTS.md` whose scope contains the path, read that child and continue from there
+6. Use the nearest `AGENTS.md` as the local contract and parent docs for repo-wide rules
+7. If docs conflict, the closer doc controls local work details, but no child doc may weaken DOX
+
+## DOX Tree
+
+- `AGENTS.md` — Root DOX framework
+- `app/AGENTS.md` — Next.js App Router
+  - `app/api/AGENTS.md` — API routes
+- `components/AGENTS.md` — React components
+- `hooks/AGENTS.md` — Custom React hooks
+- `lib/AGENTS.md` — Shared utilities
+  - `lib/ai/AGENTS.md` — AI provider
+  - `lib/auth/AGENTS.md` — Authentication and RBAC
+  - `lib/db/AGENTS.md` — Database layer
+  - `lib/graphql/AGENTS.md` — GraphQL schema
+  - `lib/llamaindex/AGENTS.md` — RAG pipeline
+    - `lib/llamaindex/loaders/AGENTS.md` — Document loaders

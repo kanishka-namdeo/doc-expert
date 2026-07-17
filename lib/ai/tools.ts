@@ -3,23 +3,23 @@ import { tool } from 'ai';
 import { retrieveContext } from '@/lib/llamaindex/retriever';
 import { listDocuments } from '@/lib/llamaindex/documents';
 
-export const documentSearchTool = tool({
+export const documentSearchTool = (userId?: string) => tool({
   description: 'Search uploaded documents by semantic similarity',
   inputSchema: z.object({
     query: z.string().describe('The search query'),
     topK: z.number().optional().describe('Number of results to return (default: 5)'),
   }),
   execute: async ({ query, topK }) => {
-    const { context, sources } = await retrieveContext(query, topK ?? 5);
+    const { context, sources } = await retrieveContext(query, topK ?? 5, userId);
     return { context, sources };
   },
 });
 
-export const listDocumentsTool = tool({
+export const listDocumentsTool = (userId?: string) => tool({
   description: 'List all uploaded documents',
   inputSchema: z.object({}),
   execute: async () => {
-    const documents = await listDocuments();
+    const documents = await listDocuments(userId);
     return { documents };
   },
 });

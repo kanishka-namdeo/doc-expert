@@ -1,0 +1,78 @@
+---
+alwaysApply: true
+---
+# Logging
+
+## Logger
+
+Use `pino` via the project logger. Never use `console.log` / `console.error` / `console.warn` in new code.
+
+### Server-side (Node.js and Edge Runtime)
+
+```typescript
+import { getLogger } from '@/lib/logger';
+
+const logger = getLogger('module/name');
+```
+
+The `module` string should match the file path relative to `lib/` or `app/` (e.g., `'api/chat'`, `'llamaindex/ingest'`, `'connectors/sync-engine'`, `'db'`, `'middleware'`).
+
+### Client-side (React components and hooks)
+
+```typescript
+import { useLogger } from '@/hooks/use-logger';
+
+const logger = useLogger('component-name');
+```
+
+## Log Levels
+
+| Level | When to use |
+|-------|-------------|
+| `error` | Catch blocks, failed operations, unexpected states. Always include `{ err: error }`. |
+| `warn` | Degraded but functional: service unavailable with fallback, retry attempts, security checks that blocked a request. |
+| `info` | Operation lifecycle boundaries (start/complete), key metrics (counts, durations), state transitions. |
+| `debug` | Pipeline internals with timing (layer entry/exit). Use sparingly — only for multi-step pipelines where tracing execution flow matters. |
+
+Do not log at `info` level for every internal step. Reserve `info` for operation boundaries and meaningful metrics.
+
+## Call Convention
+
+```typescript
+logger.level({ key: value, ...context }, 'Human-readable message');
+```
+
+First argument: structured context object. Second argument: concise message string.
+
+### Required context fields by domain
+
+- **API routes**: `{ err: error }` in catch blocks. Add `userId` when available.
+- **Middleware**: `{ method, path, requestId, status, duration }` for request lifecycle.
+- **RAG pipeline**: `{ queryLength, sourceCount, mode, documentId }` as relevant.
+- **Connectors/sync**: `{ connectorId, userId, documentId, externalId }` as relevant.
+- **Database**: `{ err: error, path }` for connection failures.
+
+## Error Logging
+
+```typescript
+catch (error) {
+  logger.error({ err: error, userId, /* other context */ }, 'Operation failed');
+  return NextResponse.json({ error: 'User-facing message' }, { status: 500 });
+}
+```
+
+- Always pass the error object as `err` in the context — pino serializes `message`, `stack`, and `type` automatically.
+- Never log full request bodies, document content, or query text. Log lengths only (`queryLength`, `fileSize`).
+- Never log passwords, tokens, API keys, or session cookies. The logger redacts these via configured paths, but do not test that assumption.
+
+## What Not to Log
+
+- Request/response bodies (log sizes and counts instead)
+- Document text content or chunk text
+- Passwords, tokens, secrets, API keys, cookies, authorization headers
+- Full URLs with query parameters that may contain tokens
+- Stack traces in `info` or `warn` levels (pino includes them in `error` via the `err` object)
+
+## Audit vs Application Logging
+
+Application logging (`logger.*`) is for operational diagnostics. Audit logging (`logAuditEvent`) is for user-action tracking (uploads, role changes, model management). They serve different purposes — use both where appropriate. Audit events go to the `auditLog` database table; application logs go to stdout/files.

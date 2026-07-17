@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,6 +17,19 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Client-side validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    if (!password) {
+      setError('Please enter your password');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -55,7 +69,10 @@ export default function LoginPage() {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (error) setError('');
+              }}
               required
               disabled={loading}
             />
@@ -69,10 +86,19 @@ export default function LoginPage() {
               id="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError('');
+              }}
               required
               disabled={loading}
             />
+          </div>
+
+          <div className="text-right">
+            <Link href="/forgot-password" className="text-xs text-primary underline-offset-4 hover:underline">
+              Forgot password?
+            </Link>
           </div>
 
           {error && (
@@ -85,6 +111,13 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
         </form>
+
+        <div className="text-center text-sm text-muted-foreground">
+          Don't have an account?{' '}
+          <Link href="/signup" className="text-primary underline-offset-4 hover:underline">
+            Sign up
+          </Link>
+        </div>
       </div>
     </div>
   );

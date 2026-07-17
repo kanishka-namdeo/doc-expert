@@ -70,3 +70,15 @@ Thumbs.db
 # cache
 .cache/
 .eslintcache
+
+# runtime data
+data/
+storage/
+
+# debug/test artifacts
+debug-*.png
+*-state.png
+response.txt
+test-*.md
+test.pdf
+test_miscdoc_expert*

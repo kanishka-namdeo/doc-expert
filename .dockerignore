@@ -1,0 +1,42 @@
+# Dependencies
+node_modules
+
+# Build output
+.next
+out
+
+# Development
+.git
+.gitignore
+.env*.local
+.env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+LICENSE
+docs
+
+# Testing
+coverage
+.nyc_output
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Scripts and data
+scripts/
+data/
+*.md
+!package.json

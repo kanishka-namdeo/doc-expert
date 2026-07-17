@@ -1,11 +1,23 @@
+import { auth } from '@/lib/auth';
 import { retrieveContext } from '@/lib/llamaindex/retriever';
 import { listDocuments } from '@/lib/llamaindex/documents';
+import { getLogger } from '@/lib/logger';
+
+const logger = getLogger('api/mcp');
 
 
 export async function POST(req: Request) {
+  // Validate session - require authentication
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return Response.json(
+      { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Unauthorized' } },
+      { status: 401 }
+    );
+  }
   try {
     const body = await req.json();
-    
+
     // Handle JSON-RPC 2.0 requests directly
     if (body.method === 'tools/list') {
       const tools = [
@@ -50,7 +62,7 @@ export async function POST(req: Request) {
       if (name === 'document_search') {
         const query = args?.query;
         const topK = args?.topK;
-        const { context, sources } = await retrieveContext(query, topK ?? 5);
+        const { context, sources } = await retrieveContext(query, topK ?? 5, session.user.id);
         
         return Response.json({
           jsonrpc: '2.0',
@@ -67,7 +79,7 @@ export async function POST(req: Request) {
       }
       
       if (name === 'list_documents') {
-        const documents = await listDocuments();
+        const documents = await listDocuments(session.user.id);
         
         return Response.json({
           jsonrpc: '2.0',
@@ -113,6 +125,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
+    logger.error({ err: error }, 'MCP request failed');
     return Response.json({
       jsonrpc: '2.0',
       error: {

@@ -23,6 +23,10 @@ Custom React hooks for reusable stateful logic and side effects.
 - Consider cleanup in `useEffect` hooks
 - Test hooks with React Testing Library when complex
 
+## Subagent Delegation
+
+Use `frontend-specialist` subagent for all work in this directory. It owns React hook patterns, state management, and client-side logic conventions.
+
 ## Verification
 
 - Run `pnpm typecheck` to ensure type safety

@@ -22,9 +22,8 @@ React component library. Contains shadcn/ui components and custom application co
 ### Adding shadcn/ui components
 
 ```bash
-npx shadcn@latest add <component-name>
+pnpm dlx shadcn@latest add <component-name>
 ```
-
 Components are installed to `components/ui/` and imported as:
 
 ```tsx
@@ -38,6 +37,10 @@ import { Button } from "@/components/ui/button"
 - Keep components focused and single-responsibility
 - Document complex props with TypeScript interfaces
 
+## Subagent Delegation
+
+Use `frontend-specialist` subagent for all work in this directory. It owns React component patterns, shadcn/ui conventions, client/server component boundaries, and accessibility practices.
+
 ## Verification
 
 - Run `pnpm typecheck` to ensure type safety
@@ -46,4 +49,5 @@ import { Button } from "@/components/ui/button"
 
 ## Child DOX Index
 
+- `ai/` - AI interaction components (citation, reasoning, sources)
 - `ui/` - shadcn/ui component primitives (managed via CLI, no separate DOX needed)

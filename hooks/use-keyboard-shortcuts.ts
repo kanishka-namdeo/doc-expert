@@ -9,6 +9,7 @@ interface UseKeyboardShortcutsOptions {
   onStopStreaming: () => void;
   onOpenSearch?: () => void;
   onOpenTemplates?: () => void;
+  onOpenShortcutsHelp?: () => void;
   inputRef: React.RefObject<HTMLInputElement>;
 }
 
@@ -29,6 +30,7 @@ export function useKeyboardShortcuts({
   onStopStreaming,
   onOpenSearch,
   onOpenTemplates,
+  onOpenShortcutsHelp,
   inputRef,
 }: UseKeyboardShortcutsOptions) {
   const shortcutsRef = useRef({
@@ -38,16 +40,20 @@ export function useKeyboardShortcuts({
     onStopStreaming,
     onOpenSearch: onOpenSearch || (() => {}),
     onOpenTemplates: onOpenTemplates || (() => {}),
+    onOpenShortcutsHelp: onOpenShortcutsHelp || (() => {}),
   });
 
-  shortcutsRef.current = {
-    onFocusInput,
-    onNewConversation,
-    onOpenUpload,
-    onStopStreaming,
-    onOpenSearch: onOpenSearch || (() => {}),
-    onOpenTemplates: onOpenTemplates || (() => {}),
-  };
+  useEffect(() => {
+    shortcutsRef.current = {
+      onFocusInput,
+      onNewConversation,
+      onOpenUpload,
+      onStopStreaming,
+      onOpenSearch: onOpenSearch || (() => {}),
+      onOpenTemplates: onOpenTemplates || (() => {}),
+      onOpenShortcutsHelp: onOpenShortcutsHelp || (() => {}),
+    };
+  });
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {

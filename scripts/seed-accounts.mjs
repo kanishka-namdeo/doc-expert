@@ -14,6 +14,17 @@ const sqlite = new Database(dbPath);
 
 // Create tables if they don't exist
 sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS organization (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    ssoProvider TEXT,
+    ssoConfig TEXT,
+    maxMembers INTEGER,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS user (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
@@ -21,8 +32,10 @@ sqlite.exec(`
     emailVerified INTEGER,
     image TEXT,
     role TEXT DEFAULT 'user',
+    orgId TEXT,
     createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
+    updatedAt INTEGER NOT NULL,
+    FOREIGN KEY (orgId) REFERENCES organization(id)
   );
 
   CREATE TABLE IF NOT EXISTS session (
@@ -32,8 +45,11 @@ sqlite.exec(`
     expiresAt INTEGER NOT NULL,
     ipAddress TEXT,
     userAgent TEXT,
+    orgId TEXT,
     createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
+    updatedAt INTEGER NOT NULL,
+    FOREIGN KEY (userId) REFERENCES user(id),
+    FOREIGN KEY (orgId) REFERENCES organization(id)
   );
 
   CREATE TABLE IF NOT EXISTS account (
@@ -49,7 +65,8 @@ sqlite.exec(`
     idToken TEXT,
     password TEXT,
     createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
+    updatedAt INTEGER NOT NULL,
+    FOREIGN KEY (userId) REFERENCES user(id)
   );
 
   CREATE TABLE IF NOT EXISTS verification (
@@ -64,27 +81,36 @@ sqlite.exec(`
   CREATE TABLE IF NOT EXISTS audit_log (
     id TEXT PRIMARY KEY,
     userId TEXT NOT NULL,
+    orgId TEXT,
     action TEXT NOT NULL,
     resource TEXT NOT NULL,
     timestamp INTEGER NOT NULL,
-    metadata TEXT
+    metadata TEXT,
+    FOREIGN KEY (userId) REFERENCES user(id),
+    FOREIGN KEY (orgId) REFERENCES organization(id)
   );
 
   CREATE TABLE IF NOT EXISTS conversation (
     id TEXT PRIMARY KEY,
     userId TEXT NOT NULL,
+    orgId TEXT,
     title TEXT,
     createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
+    updatedAt INTEGER NOT NULL,
+    FOREIGN KEY (userId) REFERENCES user(id),
+    FOREIGN KEY (orgId) REFERENCES organization(id)
   );
 
   CREATE TABLE IF NOT EXISTS message (
     id TEXT PRIMARY KEY,
     conversationId TEXT NOT NULL,
+    orgId TEXT,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
     createdAt INTEGER NOT NULL,
-    metadata TEXT
+    metadata TEXT,
+    FOREIGN KEY (conversationId) REFERENCES conversation(id),
+    FOREIGN KEY (orgId) REFERENCES organization(id)
   );
 `);
 
@@ -119,12 +145,29 @@ const testAccounts = [
 async function seed() {
   console.log('Seeding test accounts...\n');
   
+  // Get or create default organization
+  let existingOrg = sqlite.prepare('SELECT id FROM organization WHERE slug = ?').get('default');
+  
+  if (!existingOrg) {
+    const defaultOrgId = `org_default_${Date.now()}`;
+    const now = Date.now();
+    sqlite.prepare(
+      'INSERT INTO organization (id, name, slug, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)'
+    ).run(defaultOrgId, 'Default Organization', 'default', now, now);
+    existingOrg = { id: defaultOrgId };
+    console.log('✓ Created default organization');
+  } else {
+    console.log('✓ Using existing default organization');
+  }
+  
+  const defaultOrgId = existingOrg.id;
+  
   // Delete existing credential accounts to ensure fresh password hashes
   sqlite.exec("DELETE FROM account WHERE providerId='credential'");
   sqlite.exec('DELETE FROM user WHERE email IN (\'admin@docexpert.test\', \'editor@docexpert.test\', \'viewer@docexpert.test\', \'test@docexpert.test\')');
   
   const insertUser = sqlite.prepare(
-    'INSERT OR IGNORE INTO user (id, email, name, emailVerified, role, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO user (id, email, name, emailVerified, role, orgId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   );
   
   const insertAccount = sqlite.prepare(
@@ -137,14 +180,19 @@ async function seed() {
     const existing = checkUser.get(account.email);
     
     if (existing) {
-      console.log(`✓ User ${account.email} already exists`);
+      // Re-create credential account since we deleted all credential accounts above
+      const passwordHash = await hashPassword(account.password);
+      const accountId = crypto.randomUUID();
+      const now = Date.now();
+      insertAccount.run(accountId, existing.id, account.email, 'credential', passwordHash, now, now);
+      console.log(`✓ Refreshed credentials for ${account.email} (${account.role})`);
       continue;
     }
     
     const id = crypto.randomUUID();
     const now = Date.now();
     
-    insertUser.run(id, account.email, account.name, 1, account.role, now, now);
+    insertUser.run(id, account.email, account.name, 1, account.role, defaultOrgId, now, now);
     
     // Hash password with better-auth's hasher
     const passwordHash = await hashPassword(account.password);

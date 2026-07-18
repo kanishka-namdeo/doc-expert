@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { authClient } from '@/lib/auth/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
 export default function ResetPasswordForm() {
   const router = useRouter();
@@ -53,6 +54,7 @@ export default function ResetPasswordForm() {
       if (error) {
         setError(error.message || 'Failed to reset password');
       } else {
+        toast.success('Password reset successfully. Please sign in with your new password.');
         router.push('/login');
       }
     } catch (err) {

@@ -143,6 +143,42 @@ try {
     createdAt INTEGER NOT NULL,
     updatedAt INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS document_permission (
+    id TEXT PRIMARY KEY,
+    documentId TEXT NOT NULL,
+    userId TEXT,
+    groupId TEXT,
+    permission TEXT NOT NULL,
+    grantedBy TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    UNIQUE(documentId, userId),
+    UNIQUE(documentId, groupId)
+  );
+  CREATE TABLE IF NOT EXISTS "group" (
+    id TEXT PRIMARY KEY,
+    orgId TEXT NOT NULL REFERENCES organization(id),
+    name TEXT NOT NULL,
+    description TEXT,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS group_member (
+    id TEXT PRIMARY KEY,
+    groupId TEXT NOT NULL REFERENCES "group"(id),
+    userId TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    UNIQUE(groupId, userId)
+  );
+  CREATE TABLE IF NOT EXISTS notification (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT,
+    data TEXT,
+    readAt INTEGER,
+    createdAt INTEGER NOT NULL
+  );
 `);
 } catch (error) {
   logger.error({ err: error }, 'Failed to initialize database schema');

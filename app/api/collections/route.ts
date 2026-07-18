@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const { userId, orgId } = session;
 
   try {
-    let cols: Array<{ id: string; name: string; description: string | null; docCount: number }> = [];
+    const cols: Array<{ id: string; name: string; description: string | null; docCount: number }> = [];
 
     const rows = await db
       .select()

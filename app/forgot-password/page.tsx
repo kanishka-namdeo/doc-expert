@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
 
         {success ? (
           <div className="rounded-md bg-green-50 p-4 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-400">
-            If an account exists with that email, we've sent a password reset link.
+            If an account exists with that email, we&apos;ve sent a password reset link.
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">

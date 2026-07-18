@@ -76,6 +76,7 @@ export const conversation = sqliteTable('conversation', {
   userId: text('userId').notNull(),
   orgId: text('orgId').references(() => organization.id),
   title: text('title'),
+  collectionId: text('collectionId').references(() => collection.id),
   createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updatedAt', { mode: 'timestamp_ms' }).notNull(),
 });
@@ -143,12 +144,16 @@ export const documentVersion = sqliteTable('document_version', {
 export const conversationShare = sqliteTable('conversation_share', {
   id: text('id').primaryKey(),
   conversationId: text('conversationId').notNull(),
-  userId: text('userId').notNull(),
+  userId: text('userId'),
+  groupId: text('groupId'),
   sharedByUserId: text('sharedByUserId').notNull(),
   permission: text('permission').default('read'), // 'read' | 'write'
   createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updatedAt', { mode: 'timestamp_ms' }).notNull(),
-});
+}, (table) => ({
+  uniqueUserShare: unique().on(table.conversationId, table.userId),
+  uniqueGroupShare: unique().on(table.conversationId, table.groupId),
+}));
 
 // System configuration table (default model, etc.)
 export const systemConfig = sqliteTable('system_config', {
@@ -187,4 +192,48 @@ export const promptTemplate = sqliteTable('prompt_template', {
   category: text('category'),
   createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updatedAt', { mode: 'timestamp_ms' }).notNull(),
+});
+
+// Document-level access control tables
+export const documentPermission = sqliteTable('document_permission', {
+  id: text('id').primaryKey(),
+  documentId: text('documentId').notNull(),
+  userId: text('userId'),
+  groupId: text('groupId'),
+  permission: text('permission').notNull().$type<'read' | 'write' | 'admin'>(),
+  grantedBy: text('grantedBy').notNull(),
+  createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
+}, (table) => ({
+  uniqueUserPermission: unique().on(table.documentId, table.userId),
+  uniqueGroupPermission: unique().on(table.documentId, table.groupId),
+}));
+
+export const groupTable = sqliteTable('group', {
+  id: text('id').primaryKey(),
+  orgId: text('orgId').notNull().references(() => organization.id),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp_ms' }).notNull(),
+});
+
+export const groupMember = sqliteTable('group_member', {
+  id: text('id').primaryKey(),
+  groupId: text('groupId').notNull().references(() => groupTable.id),
+  userId: text('userId').notNull(),
+  createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
+}, (table) => ({
+  uniqueMember: unique().on(table.groupId, table.userId),
+}));
+
+// Notification table for in-app notifications
+export const notification = sqliteTable('notification', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull(),
+  type: text('type').notNull(), // 'document_approved' | 'document_rejected' | 'document_shared' | 'conversation_shared'
+  title: text('title').notNull(),
+  message: text('message'),
+  data: text('data'), // JSON string with contextual info (documentId, conversationId, etc.)
+  readAt: integer('readAt', { mode: 'timestamp_ms' }),
+  createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
 });

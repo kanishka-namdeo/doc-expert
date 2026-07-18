@@ -1,9 +1,16 @@
 import { authClient } from './client';
+import { getClientLogger } from '@/lib/client-logger';
+
+const logger = getClientLogger('session-monitor');
 
 let monitorInterval: NodeJS.Timeout | null = null;
 
+const FIFTEEN_MINUTES = 15 * 60 * 1000;
+const FIVE_MINUTES = 5 * 60 * 1000;
+
 export function startSessionMonitor(
-  onWarning: () => void,
+  onEarlyWarning: (timeRemaining: number) => void,
+  onWarning: (timeRemaining: number) => void,
   onExpired: () => void
 ) {
   // Clear any existing monitor
@@ -12,7 +19,7 @@ export function startSessionMonitor(
   monitorInterval = setInterval(async () => {
     try {
       const { data: session } = await authClient.getSession();
-      
+
       if (!session?.session?.expiresAt) {
         onExpired();
         return;
@@ -21,17 +28,18 @@ export function startSessionMonitor(
       const expiresAt = new Date(session.session.expiresAt);
       const now = new Date();
       const timeRemaining = expiresAt.getTime() - now.getTime();
-      const fiveMinutes = 5 * 60 * 1000;
 
       if (timeRemaining <= 0) {
         onExpired();
-      } else if (timeRemaining <= fiveMinutes) {
-        onWarning();
+      } else if (timeRemaining <= FIVE_MINUTES) {
+        onWarning(timeRemaining);
+      } else if (timeRemaining <= FIFTEEN_MINUTES) {
+        onEarlyWarning(timeRemaining);
       }
     } catch (err) {
-      console.error('Session monitor error:', err);
+      logger.error('Session monitor error', { err });
     }
-  }, 60 * 1000); // Check every minute
+  }, 30 * 1000); // Check every 30 seconds
 }
 
 export async function extendSession() {
@@ -46,9 +54,9 @@ export async function extendSession() {
     }
     
     const result = await response.json();
-    console.log('Session extended until:', new Date(result.expiresAt));
+    logger.info('Session extended', { expiresAt: result.expiresAt });
   } catch (err) {
-    console.error('Failed to extend session:', err);
+    logger.error('Failed to extend session', { err });
     throw err;
   }
 }

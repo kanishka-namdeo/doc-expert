@@ -13,8 +13,8 @@ const logger = getLogger('api/admin/users');
 const querySchema = z.object({
   page: z.string().optional().default('1'),
   limit: z.string().optional().default('20'),
-  search: z.string().optional(),
-  role: z.string().optional(),
+  search: z.string().nullable().optional(),
+  role: z.string().nullable().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -43,8 +43,7 @@ export async function GET(request: NextRequest) {
     });
     const adminOrgId = adminUser?.orgId;
 
-    let whereClause;
-    const conditions = [];
+    const conditions: ReturnType<typeof eq>[] = [];
     if (adminOrgId) {
       conditions.push(eq(user.orgId, adminOrgId));
     }
@@ -53,13 +52,13 @@ export async function GET(request: NextRequest) {
         or(
           like(user.email, `%${search}%`),
           like(user.name || '', `%${search}%`)
-        )
+        ) as ReturnType<typeof eq>
       );
     }
     if (role) {
       conditions.push(eq(user.role, role));
     }
-    whereClause = conditions.length > 0 ? conditions.reduce((a, b) => and(a as any, b as any)) : undefined;
+    const whereClause = conditions.length > 0 ? conditions.reduce((a, b) => and(a, b)!) : undefined;
 
     const users = await db
       .select({
@@ -71,7 +70,7 @@ export async function GET(request: NextRequest) {
         updatedAt: user.updatedAt,
       })
       .from(user)
-      .where(whereClause as any)
+      .where(whereClause)
       .orderBy(desc(user.createdAt))
       .limit(limit)
       .offset(offset);
@@ -79,7 +78,7 @@ export async function GET(request: NextRequest) {
     const [countResult] = await db
       .select({ count: count() })
       .from(user)
-      .where(whereClause as any);
+      .where(whereClause);
 
     return NextResponse.json({
       users,

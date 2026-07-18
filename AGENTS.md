@@ -116,8 +116,13 @@ When the user requests a durable behavior change, record it here or in the relev
 
 - `.cursor/agents/` - Subagent configuration files (api, auth, database, frontend, rag, testing specialists)
 - `app/` - Next.js App Router implementation (pages, layouts, routes)
-  - `app/api/` - API routes (auth, chat, documents, MCP, GraphQL)
-  - `app/documents/[id]/` - Document viewing pages
+  - `app/(authenticated)/` - Route group for authenticated pages with AppShell layout
+    - `app/(authenticated)/admin/` - Admin pages (users, models, audit, groups, SSO, health)
+    - `app/(authenticated)/collections/` - Collections management pages
+    - `app/(authenticated)/documents/` - Document viewing and management
+    - `app/(authenticated)/settings/` - Application settings (connectors)
+    - `app/(authenticated)/templates/` - Prompt template management
+  - `app/api/` - API routes (auth, chat, documents, MCP, GraphQL, permissions)
   - `app/forgot-password/` - Password recovery flow
   - `app/login/` - User authentication
   - `app/profile/` - User profile management
@@ -133,12 +138,13 @@ When the user requests a durable behavior change, record it here or in the relev
 - `lib/` - Shared utility modules
   - `lib/ai/` - AI provider configuration and tools
   - `lib/auth/` - Better Auth, RBAC, session monitoring
+  - `lib/connectors/` - External connector framework (Google Drive, Microsoft 365)
   - `lib/db/` - Drizzle ORM schema and queries
   - `lib/graphql/` - GraphQL schema and resolver context
   - `lib/llamaindex/` - RAG pipeline (ingestion, retrieval, Qdrant)
- - `lib/llamaindex/loaders/` - Document format loaders (PDF, DOCX, Markdown)
- - `lib/templates/` - Prompt template defaults and types
- - `lib/types/` - TypeScript type definitions
+    - `lib/llamaindex/loaders/` - Document format loaders (PDF, DOCX, Markdown)
+  - `lib/templates/` - Prompt template defaults and types
+  - `lib/types/` - TypeScript type definitions
 - `public/` - Static assets served by Next.js
 - `scripts/` - Database initialization and seeding scripts
 - `storage/` - Storage configuration and aliases

@@ -14,11 +14,26 @@ const logger = getLogger('graphql');
 
 export const builder = new SchemaBuilder<{
   Context: GraphQLContext;
+  Objects: {
+    User: typeof user.$inferSelect;
+    Conversation: typeof conversation.$inferSelect;
+    Message: typeof message.$inferSelect;
+    Source: QdrantSource;
+    Document: DocumentInfo;
+    SearchResult: { chunks: Array<{ text: string; score: number; pageNumber?: number }>; document: DocumentInfo };
+    SearchChunk: { text: string; score: number; pageNumber?: number };
+  };
+  Scalars: {
+    DateTime: {
+      Input: Date | string | number;
+      Output: Date | string | number;
+    };
+  };
 }>({
   plugins: [SimpleObjectsPlugin, RelayPlugin],
 });
 
-// Scalar types
+// Define DateTime scalar
 builder.scalarType('DateTime', {
   serialize: (value: unknown) => {
     if (value instanceof Date) return value.toISOString();
@@ -49,8 +64,7 @@ builder.objectRef<typeof conversation.$inferSelect>('Conversation').implement({
     updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
     messages: t.connection({
       type: 'Message',
-      resolve: async (conv: typeof conversation.$inferSelect, args: { first?: number; after?: string; context: GraphQLContext }) => {
-        const ctx = args.context as GraphQLContext;
+      resolve: async (conv: typeof conversation.$inferSelect, args: { first?: number | null; after?: string | null }, ctx: GraphQLContext) => {
         const limit = args.first ?? 50;
         const after = args.after ? parseInt(args.after, 10) : 0;
 
@@ -150,15 +164,14 @@ builder.queryType({
   fields: (t) => ({
     me: t.field({
       type: 'User',
-      resolve: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
+      resolve: (_: unknown, _args: Record<string, never>, ctx: GraphQLContext) => {
         if (!ctx.userId) throw new Error('Unauthorized');
-        const rows = await ctx.db.select().from(user).where(eq(user.id, ctx.userId));
-        return rows[0] || null;
+        return ctx.loaders.userById.load(ctx.userId);
       },
     }),
     conversations: t.connection({
       type: 'Conversation',
-      resolve: async (_: unknown, args: { first?: number; after?: string }, ctx: GraphQLContext) => {
+      resolve: async (_: unknown, args: { first?: number | null; after?: string | null }, ctx: GraphQLContext) => {
         if (!ctx.userId) throw new Error('Unauthorized');
         const limit = args.first ?? 20;
         const after = args.after ? parseInt(args.after, 10) : 0;
@@ -190,6 +203,7 @@ builder.queryType({
     }),
     conversation: t.field({
       type: 'Conversation',
+      nullable: true,
       args: { id: t.arg.id({ required: true }) },
       resolve: async (_: unknown, { id }: { id: string }, ctx: GraphQLContext) => {
         if (!ctx.userId) throw new Error('Unauthorized');
@@ -219,10 +233,11 @@ builder.queryType({
         query: t.arg.string({ required: true }), 
         limit: t.arg.int({ defaultValue: 5 }) 
       },
-      resolve: async (_: unknown, { query, limit }: { query: string; limit: number }, ctx: GraphQLContext) => {
+      resolve: async (_: unknown, args: { query: string; limit?: number | null }, ctx: GraphQLContext) => {
         if (!ctx.userId) throw new Error('Unauthorized');
+        const limit = args.limit ?? 5;
         try {
-          const { sources } = await retrieveContext(query, limit, ctx.userId);
+          const { sources } = await retrieveContext(args.query, limit, ctx.userId);
           
           // Group sources by document
           const docMap = new Map<string, { chunks: Array<{ text: string; score: number }>; docInfo: DocumentInfo | null }>();
@@ -278,7 +293,7 @@ builder.mutationType({
             updatedAt: now,
           })
           .returning();
-        return newConv[0];
+        return newConv[0] ?? null;
       },
     }),
     deleteConversation: t.field({

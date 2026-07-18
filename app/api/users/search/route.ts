@@ -2,18 +2,17 @@ import { auth } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { user } from '@/lib/db/schema';
-import { like } from 'drizzle-orm';
+import { and, eq, like } from 'drizzle-orm';
 import { getLogger } from '@/lib/logger';
+import { getAuthSession } from '@/lib/auth/session';
 
 const logger = getLogger('api/users/search');
 
 export async function GET(
   request: NextRequest
 ) {
-  const session = await auth.api.getSession({ headers: request.headers });
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const session = await getAuthSession({ headers: request.headers });
+  if (session.error) return session.error;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -25,7 +24,7 @@ export async function GET(
 
     const query = q.trim();
 
-    // Search users by email prefix, exclude current user
+    // Search users by email prefix within the same org, exclude current user
     const users = await db
       .select({
         id: user.id,
@@ -33,11 +32,14 @@ export async function GET(
         email: user.email,
       })
       .from(user)
-      .where(like(user.email, `${query}%`))
+      .where(and(
+        like(user.email, `${query}%`),
+        eq(user.orgId, session.orgId)
+      ))
       .limit(10);
 
     // Filter out current user
-    const filtered = users.filter(u => u.id !== session.user.id);
+    const filtered = users.filter(u => u.id !== session.userId);
 
     return NextResponse.json({ users: filtered });
   } catch (error) {

@@ -4,7 +4,7 @@ import { deleteDocument } from '@/lib/llamaindex/documents';
 import { logAuditEvent } from '@/lib/audit';
 import { getLogger } from '@/lib/logger';
 import { db } from '@/lib/db';
-import { user as userTable } from '@/lib/db/schema';
+import { user as userTable, document as documentTable } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getAuthSession } from '@/lib/auth/session';
 
@@ -52,30 +52,63 @@ export async function GET(
       }
     );
 
-    if (!response.ok) {
-      throw new Error('Failed to query Qdrant');
+    let chunks: { id: string; text: string; metadata: { fileName: string; uploadedAt: string; chunkIndex?: number } }[] = [];
+
+    if (response.ok) {
+      const data = await response.json();
+      const points = data.result?.points || [];
+
+      // Transform points to chunks format
+      chunks = points.map((point: { id: string; payload?: Record<string, unknown> }) => ({
+        id: point.id,
+        text: point.payload?.text as string || '',
+        metadata: {
+          fileName: point.payload?.fileName as string || 'Unknown',
+          uploadedAt: point.payload?.uploadedAt as string || '',
+          chunkIndex: point.payload?.chunkIndex as number | undefined,
+        },
+      }));
+
+      // Sort by chunk index if available
+      chunks.sort((a: { metadata: { chunkIndex?: number } }, b: { metadata: { chunkIndex?: number } }) => {
+        const indexA = a.metadata.chunkIndex ?? 0;
+        const indexB = b.metadata.chunkIndex ?? 0;
+        return indexA - indexB;
+      });
     }
 
-    const data = await response.json();
-    const points = data.result?.points || [];
+    // Fetch document metadata from SQLite (works for pending docs too)
+    let documentStatus = 'approved';
+    let documentSource = 'upload';
+    let dbFileName: string | undefined;
+    let dbUploadedAt: string | undefined;
 
-    // Transform points to chunks format
-    const chunks = points.map((point: { id: string; payload?: Record<string, unknown> }) => ({
-      id: point.id,
-      text: point.payload?.text as string || '',
-      metadata: {
-        fileName: point.payload?.fileName as string || 'Unknown',
-        uploadedAt: point.payload?.uploadedAt as string || '',
-        chunkIndex: point.payload?.chunkIndex as number | undefined,
-      },
-    }));
+    try {
+      const dbDoc = await db.query.document.findFirst({
+        columns: { status: true, source: true, fileName: true, createdAt: true },
+        where: eq(documentTable.id, documentId),
+      });
+      if (dbDoc) {
+        documentStatus = dbDoc.status || documentStatus;
+        documentSource = dbDoc.source || documentSource;
+        dbFileName = dbDoc.fileName;
+        dbUploadedAt = dbDoc.createdAt ? new Date(dbDoc.createdAt).toISOString() : undefined;
+      }
+    } catch {
+      // ignore
+    }
 
-    // Sort by chunk index if available
-    chunks.sort((a: { metadata: { chunkIndex?: number } }, b: { metadata: { chunkIndex?: number } }) => {
-      const indexA = a.metadata.chunkIndex ?? 0;
-      const indexB = b.metadata.chunkIndex ?? 0;
-      return indexA - indexB;
-    });
+    // If Qdrant returned empty (pending doc), populate metadata from SQLite
+    if (chunks.length === 0 && dbFileName) {
+      chunks = [{
+        id: documentId,
+        text: '',
+        metadata: {
+          fileName: dbFileName,
+          uploadedAt: dbUploadedAt || '',
+        },
+      }];
+    }
 
     logger.info({ documentId, chunkCount: chunks.length }, 'Document chunks fetched');
 
@@ -86,7 +119,7 @@ export async function GET(
       { chunkCount: chunks.length, orgId }
     );
 
-    return NextResponse.json({ chunks });
+    return NextResponse.json({ chunks, status: documentStatus, source: documentSource });
   } catch (error) {
     logger.error({ err: error, documentId: (await params).id }, 'Failed to fetch document chunks');
     return NextResponse.json(

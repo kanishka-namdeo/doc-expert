@@ -15,6 +15,8 @@ Next.js App Router implementation. Contains pages, layouts, and global styles.
 - All pages must be exported as default functions
 - Server Components are the default; use `"use client"` directive only when needed
 - Layout wraps all pages in the directory and receives `children` prop
+- Authenticated pages are grouped under `app/(authenticated)/` with a shared `AppShell` layout that provides sidebar navigation
+- Public pages (`login`, `signup`, `forgot-password`, `reset-password`) remain outside the route group
 
 ## Work Guidance
 
@@ -49,6 +51,7 @@ Use `frontend-specialist` subagent for page and layout work in this directory. F
 
 - `api/` - Next.js API routes (auth, chat, documents, MCP, users, admin, collections, templates)
 - `admin/models/` - On-prem model management page
+- `collections/` - Collections management pages (list and detail views)
 - `documents/[id]/` - Document viewing pages
 - `forgot-password/` - Password recovery flow
 - `login/` - User authentication page

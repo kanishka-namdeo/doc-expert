@@ -8,10 +8,11 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
+const MAX_STORE_SIZE = 10_000;
 const store = new Map<string, RateLimitEntry>();
 
 // Cleanup expired entries every 60 seconds
-setInterval(() => {
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of store.entries()) {
     if (entry.resetAt < now) {
@@ -19,6 +20,30 @@ setInterval(() => {
     }
   }
 }, 60_000);
+
+// Allow the cleanup interval to not prevent process exit
+if (cleanupInterval.unref) {
+  cleanupInterval.unref();
+}
+
+function evictIfNeeded(): void {
+  if (store.size <= MAX_STORE_SIZE) return;
+  const now = Date.now();
+  // First pass: remove expired entries
+  for (const [key, entry] of store.entries()) {
+    if (entry.resetAt < now) {
+      store.delete(key);
+    }
+  }
+  // Second pass: if still over limit, remove oldest entries
+  if (store.size > MAX_STORE_SIZE) {
+    const sorted = [...store.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt);
+    const toRemove = store.size - MAX_STORE_SIZE;
+    for (let i = 0; i < toRemove; i++) {
+      store.delete(sorted[i][0]);
+    }
+  }
+}
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -37,6 +62,7 @@ export function checkRateLimit(
   limit: number,
   windowMs: number
 ): RateLimitResult {
+  evictIfNeeded();
   const now = Date.now();
 
   const entry = store.get(key);
@@ -70,18 +96,20 @@ export function checkRateLimit(
  * Get rate limit configuration for a given path.
  */
 export function getRateLimitConfig(path: string): { limit: number; windowMs: number } | null {
+  const isDev = process.env.NODE_ENV === 'development';
+
   if (path.startsWith('/api/chat')) {
-    return { limit: 30, windowMs: 60_000 }; // 30 req/min
+    return { limit: isDev ? 300 : 30, windowMs: 60_000 };
   }
   if (path.startsWith('/api/documents/upload')) {
-    return { limit: 10, windowMs: 60_000 }; // 10 req/min
+    return { limit: isDev ? 100 : 10, windowMs: 60_000 };
   }
   // Exclude session checks from rate limiting (read-only, called frequently)
   if (path === '/api/auth/get-session') {
     return null;
   }
   if (path.startsWith('/api/auth')) {
-    return { limit: 5, windowMs: 60_000 }; // 5 req/min
+    return { limit: isDev ? 120 : 5, windowMs: 60_000 };
   }
   return null;
 }

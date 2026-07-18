@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { title } = body;
+    const { title, collectionId } = body;
     const { userId, orgId } = session;
 
     const now = new Date();
@@ -71,6 +71,7 @@ export async function POST(request: Request) {
         userId,
         orgId,
         title: title || 'New Conversation',
+        collectionId: collectionId || null,
         createdAt: now,
         updatedAt: now,
       })

@@ -30,6 +30,7 @@ export interface DocumentInfo {
   uploadedAt: string;
   chunkCount: number;
   source?: string;
+  status?: string;
 }
 
 export interface DocumentChunk {

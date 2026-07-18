@@ -118,11 +118,14 @@ CREATE TABLE IF NOT EXISTS document_version (
 CREATE TABLE IF NOT EXISTS conversation_share (
   id TEXT PRIMARY KEY,
   conversationId TEXT NOT NULL,
-  userId TEXT NOT NULL,
+  userId TEXT,
+  groupId TEXT,
   sharedByUserId TEXT NOT NULL,
   permission TEXT DEFAULT 'read',
   createdAt INTEGER NOT NULL,
-  updatedAt INTEGER NOT NULL
+  updatedAt INTEGER NOT NULL,
+  UNIQUE(conversationId, userId),
+  UNIQUE(conversationId, groupId)
 );
 
 CREATE TABLE IF NOT EXISTS system_config (

@@ -194,8 +194,9 @@ export async function retrieveContext(
   const mode = RETRIEVAL_MODE;
   logger.info({ mode, queryLength: query.length, topK, orgId, userId }, 'Retrieval started');
 
+  let timeoutId: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(`Retrieval timeout after ${RETRIEVAL_TIMEOUT_MS}ms`)), RETRIEVAL_TIMEOUT_MS);
+    timeoutId = setTimeout(() => reject(new Error(`Retrieval timeout after ${RETRIEVAL_TIMEOUT_MS}ms`)), RETRIEVAL_TIMEOUT_MS);
   });
 
   const pipelinePromise = (async () => {
@@ -222,5 +223,7 @@ export async function retrieveContext(
       return { context: 'Retrieval timed out. Partial results may be unavailable.', sources: [] };
     }
     throw error;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }

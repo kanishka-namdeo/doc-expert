@@ -4,24 +4,31 @@ import { useState, useEffect } from 'react';
 import { MessageSquare, Plus, Pencil, Trash2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ListEmptyState, ListLoadingState } from '@/components/list-empty-state';
 
 interface Conversation {
   id: string;
   title: string;
   createdAt: string;
+  collectionId?: string | null;
 }
 
 interface ConversationSidebarProps {
   currentConversationId: string | null;
   setCurrentConversationId: (id: string | null) => void;
+  selectedCollectionId: string | null;
+  setSelectedCollectionId: (id: string | null) => void;
   onShare?: (conversationId: string) => void;
 }
 
-export function ConversationSidebar({ currentConversationId, setCurrentConversationId, onShare }: ConversationSidebarProps) {
+export function ConversationSidebar({ currentConversationId, setCurrentConversationId, selectedCollectionId, setSelectedCollectionId, onShare }: ConversationSidebarProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const fetchConversations = async () => {
     setLoading(true);
@@ -47,15 +54,15 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
     fetchConversations();
   }, []);
 
-  const handleCreate = async () => {
+  const handleCreate = async (collectionId?: string) => {
     try {
       const response = await fetch('/api/conversations', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'New Conversation' }),
+        body: JSON.stringify({ title: 'New Conversation', collectionId }),
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Create conversation failed:', response.status, errorText);
@@ -65,7 +72,7 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
         }
         throw new Error(`Failed to create conversation: ${response.status}`);
       }
-      
+
       const data = await response.json();
       const newId = data.conversation.id;
       setCurrentConversationId(newId);
@@ -75,16 +82,23 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this conversation?')) return;
+  const handleDeleteClick = (id: string) => {
+    setDeleteTarget(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await fetch(`/api/conversations/${id}`, { method: 'DELETE', credentials: 'include' });
-      if (currentConversationId === id) {
+      await fetch(`/api/conversations/${deleteTarget}`, { method: 'DELETE', credentials: 'include' });
+      if (currentConversationId === deleteTarget) {
         setCurrentConversationId(null);
       }
       fetchConversations();
     } catch (err) {
       console.error('Failed to delete conversation:', err);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -119,9 +133,10 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
   };
 
   return (
+    <>
     <div className="w-64 border-r flex flex-col h-screen">
       <div className="p-4 border-b">
-        <Button onClick={handleCreate} className="w-full">
+        <Button onClick={() => handleCreate(selectedCollectionId ?? undefined)} className="w-full">
           <Plus className="mr-2 h-4 w-4" />
           New Chat
         </Button>
@@ -129,9 +144,13 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
       
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {loading ? (
-          <div className="text-center text-sm text-muted-foreground py-4">Loading...</div>
+          <ListLoadingState message="Loading..." />
         ) : conversations.length === 0 ? (
-          <div className="text-center text-sm text-muted-foreground py-4">No conversations</div>
+          <ListEmptyState
+            message="No conversations"
+            description="Start a new chat to begin"
+            icon={<MessageSquare className="h-10 w-10 text-muted-foreground" />}
+          />
         ) : (
           conversations.map((conv) => (
             <div
@@ -139,7 +158,12 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
               className={`group relative rounded-md p-2 text-sm cursor-pointer transition-colors ${
                 currentConversationId === conv.id ? 'bg-muted' : 'hover:bg-muted/50'
               }`}
-              onClick={() => setCurrentConversationId(conv.id)}
+              onClick={() => {
+                setCurrentConversationId(conv.id);
+                if (conv.collectionId) {
+                  setSelectedCollectionId(conv.collectionId);
+                }
+              }}
             >
               {editingId === conv.id ? (
                 <Input
@@ -160,7 +184,13 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
                     <MessageSquare className="h-3 w-3 text-muted-foreground" />
                     <span className="truncate flex-1">{conv.title}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">{formatDate(conv.createdAt)}</div>
+                  {conv.collectionId && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>
+                      <span className="text-[10px] text-muted-foreground truncate">Collection</span>
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-0.5">{formatDate(conv.createdAt)}</div>
                   
                   <div className="absolute right-2 top-2 hidden group-hover:flex gap-1">
                     <Button
@@ -206,7 +236,7 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
                       className="h-6 w-6 p-0"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDelete(conv.id);
+                        handleDeleteClick(conv.id);
                       }}
                       title="Delete"
                     >
@@ -220,5 +250,15 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
         )}
       </div>
     </div>
+    <ConfirmDialog
+      open={showDeleteConfirm}
+      onOpenChange={setShowDeleteConfirm}
+      title="Delete conversation?"
+      description="This will permanently delete this conversation and all its messages."
+      confirmLabel="Delete"
+      confirmVariant="destructive"
+      onConfirm={confirmDelete}
+    />
+    </>
   );
 }

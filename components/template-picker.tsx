@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Search, Plus, Trash2, Edit2, BookTemplate, Loader2 } from 'lucide-react';
+import { Search, Plus, Trash2, Copy, BookTemplate, Loader2 } from 'lucide-react';
 
 interface Template {
   id: string;
@@ -205,7 +205,7 @@ export function TemplatePicker({ open, onOpenChange, onSelect }: TemplatePickerP
                                 }}
                                 title="Copy prompt"
                               >
-                                <Edit2 className="h-3 w-3" />
+                                <Copy className="h-3 w-3" />
                               </Button>
                               <Button
                                 variant="ghost"

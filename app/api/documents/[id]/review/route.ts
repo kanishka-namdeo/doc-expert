@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { logAuditEvent } from '@/lib/audit';
 import { QdrantVectorStore } from '@/lib/llamaindex/qdrant-store';
 import { getAuthSession } from '@/lib/auth/session';
+import { createNotification } from '@/lib/notifications';
 
 const logger = getLogger('api/documents/[id]/review');
 
@@ -88,6 +89,19 @@ export async function POST(
       'document',
       { documentId: id, fileName: doc.fileName, orgId }
     );
+
+    // Notify the document owner about the approval/rejection
+    try {
+      await createNotification(
+        doc.userId,
+        action === 'approve' ? 'document_approved' : 'document_rejected',
+        `Document ${action === 'approve' ? 'approved' : 'rejected'}`,
+        `Your document "${doc.fileName}" has been ${action === 'approve' ? 'approved' : 'rejected'} by an admin.`,
+        { documentId: id }
+      );
+    } catch (notifErr) {
+      logger.warn({ err: notifErr }, 'Failed to create notification for document review');
+    }
 
     return NextResponse.json({ success: true, status: action });
   } catch (error) {

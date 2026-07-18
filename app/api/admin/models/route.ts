@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   const ollamaUrl = process.env.OLLAMA_URL ?? 'http://localhost:11434';
 
   try {
-    const response = await fetch(`${ollamaUrl}/api/tags`);
+    const response = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
     let chatModels: OllamaModel[] = [];
 
     if (response.ok) {
@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ models: chatModels });
   } catch (error) {
-    logger.error({ err: error }, 'Failed to list Ollama models');
-    return NextResponse.json({ error: 'Failed to list models' }, { status: 500 });
+    logger.warn({ err: error }, 'Ollama not available, returning empty model list');
+    return NextResponse.json({ models: [] });
   }
 }
 

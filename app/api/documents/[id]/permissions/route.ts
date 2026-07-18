@@ -4,6 +4,7 @@ import { getAuthSession } from '@/lib/auth/session';
 import { getLogger } from '@/lib/logger';
 import { logAuditEvent } from '@/lib/audit';
 import { db } from '@/lib/db';
+import { createNotification } from '@/lib/notifications';
 import {
   documentPermission,
   user as userTable,
@@ -412,11 +413,130 @@ export async function POST(
       { target: targetLabel, permission, orgId }
     );
 
+    // Notify the target user that a document was shared with them
+    if (targetUserId) {
+      try {
+        const [doc] = await db
+          .select({ fileName: documentTable.fileName })
+          .from(documentTable)
+          .where(eq(documentTable.id, documentId));
+        const sharer = await db
+          .select({ name: userTable.name })
+          .from(userTable)
+          .where(eq(userTable.id, userId));
+        await createNotification(
+          targetUserId,
+          'document_shared',
+          'Document shared with you',
+          `${sharer[0]?.name || 'A user'} shared "${doc?.fileName || 'a document'}" with you`,
+          { documentId }
+        );
+      } catch (notifErr) {
+        logger.warn({ err: notifErr }, 'Failed to create notification for document share');
+      }
+    }
+
     return NextResponse.json({ success: true, permissionId: permId });
   } catch (error) {
     logger.error({ err: error, documentId }, 'Failed to grant permission');
     return NextResponse.json(
       { error: 'Failed to grant permission' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getAuthSession({ headers: request.headers });
+  if (session.error) return session.error;
+
+  const { userId, orgId } = session;
+  const { id: documentId } = await params;
+
+  try {
+    const body = await request.json();
+    const { permissionId, newPermission } = body as {
+      permissionId: string;
+      newPermission: 'read' | 'write' | 'admin';
+    };
+
+    if (!permissionId || !newPermission) {
+      return NextResponse.json(
+        { error: 'permissionId and newPermission are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!['read', 'write', 'admin'].includes(newPermission)) {
+      return NextResponse.json(
+        { error: 'Permission must be read, write, or admin' },
+        { status: 400 }
+      );
+    }
+
+    // Verify document belongs to user's org
+    const docCheck = await db.query.document.findFirst({
+      where: and(eq(documentTable.id, documentId), eq(documentTable.orgId, orgId)),
+      columns: { id: true },
+    });
+    if (!docCheck) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
+
+    // Verify requester has admin or owner permission
+    const userPerm = await resolveUserPermission(documentId, userId);
+    if (!userPerm || userPerm === 'read' || userPerm === 'write') {
+      return NextResponse.json(
+        { error: 'Admin permission required to change access levels' },
+        { status: 403 }
+      );
+    }
+
+    // Find the permission record
+    const perm = await db.query.documentPermission.findFirst({
+      where: and(
+        eq(documentPermission.documentId, documentId),
+        eq(documentPermission.id, permissionId)
+      ),
+    });
+
+    if (!perm) {
+      return NextResponse.json(
+        { error: 'Permission not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update permission level
+    await db.update(documentPermission)
+      .set({ permission: newPermission })
+      .where(
+        and(
+          eq(documentPermission.documentId, documentId),
+          eq(documentPermission.id, permissionId)
+        )
+      );
+
+    // Sync ACL to Qdrant
+    await updateDocumentAcl(documentId);
+
+    logger.info({ documentId, permissionId, newPermission, changer: userId }, 'Permission level updated');
+
+    await logAuditEvent(
+      userId,
+      'document.permission.update',
+      `document:${documentId}`,
+      { permissionId, newPermission, orgId }
+    );
+
+    return NextResponse.json({ success: true, permissionId, newPermission });
+  } catch (error) {
+    logger.error({ err: error, documentId }, 'Failed to update permission');
+    return NextResponse.json(
+      { error: 'Failed to update permission' },
       { status: 500 }
     );
   }

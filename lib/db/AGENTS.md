@@ -22,7 +22,7 @@ SQLite database access layer using Drizzle ORM. Manages schema definitions, migr
 
 ### Key modules
 
-- `schema.ts` - Database table definitions and relationships (user, session, conversation, message, document, auditLog, systemConfig, collection, collectionDocument, promptTemplate)
+- `schema.ts` - Database table definitions and relationships (user, session, conversation, message, document, auditLog, systemConfig, collection, collectionDocument, promptTemplate, documentPermission, group, groupMember)
 - `index.ts` - Database connection and Drizzle instance export
 
 ### Adding new tables

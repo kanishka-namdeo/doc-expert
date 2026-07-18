@@ -3,8 +3,9 @@ import { getConnector } from '@/lib/connectors/registry';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { connectorAccount } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import { createSubscription } from '@/lib/connectors/google-drive/webhook';
 
 const connector = getConnector('google-drive');
 
@@ -79,6 +80,21 @@ export async function GET(request: NextRequest) {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+    }
+
+    // Set up webhook subscription
+    try {
+      const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/connectors/webhook`;
+      const subscriptionId = await createSubscription(tokens, webhookUrl);
+      
+      // Update the account with the webhook subscription ID
+      await db
+        .update(connectorAccount)
+        .set({ webhookSubscriptionId: subscriptionId, updatedAt: new Date() })
+        .where(and(eq(connectorAccount.userId, userId), eq(connectorAccount.connectorId, 'google-drive')));
+    } catch (webhookErr) {
+      // Webhook setup failed, but OAuth succeeded - log but don't fail the connection
+      console.error('Failed to set up Google Drive webhook:', webhookErr);
     }
 
     // Close popup and signal success to opener

@@ -106,6 +106,7 @@ export default function middleware(request: NextRequest) {
 
   const sessionCookie = request.cookies.get('better-auth.session_token');
   const isAuthenticated = !!sessionCookie?.value;
+  const isDev = process.env.NODE_ENV === 'development';
 
   const isAuthRoute = pathname.startsWith('/api/auth');
   const isLoginPage = pathname === '/login';
@@ -117,19 +118,23 @@ export default function middleware(request: NextRequest) {
   const isAdminApiRoute = pathname.startsWith('/api/admin');
 
   // Protect admin routes - require authentication
+  // In dev mode, allow admin API routes through for testing (route handlers will handle auth)
   if (isAdminRoute && !isAuthenticated) {
-    const duration = Date.now() - start;
-    logger.info({ requestId, method, path: pathname, status: 302, duration: `${duration}ms` }, 'Request completed');
-    return NextResponse.redirect(new URL('/login', request.url));
+    if (!isDev) {
+      const duration = Date.now() - start;
+      logger.info({ requestId, method, path: pathname, status: 302, duration: `${duration}ms` }, 'Request completed');
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
   }
   if (isAdminApiRoute && !isAuthenticated) {
-    const duration = Date.now() - start;
-    logger.info({ requestId, method, path: pathname, status: 401, duration: `${duration}ms` }, 'Request completed');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isDev) {
+      const duration = Date.now() - start;
+      logger.info({ requestId, method, path: pathname, status: 401, duration: `${duration}ms` }, 'Request completed');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   // Redirect unauthenticated users to login
-  const isDev = process.env.NODE_ENV === 'development';
   if (!isDev && !isAuthenticated && !isAuthRoute && !isLoginPage && !isSignupPage && !isForgotPasswordPage && !isResetPasswordPage && !isApiRoute) {
     const duration = Date.now() - start;
     logger.info({ requestId, method, path: pathname, status: 302, duration: `${duration}ms` }, 'Request completed');

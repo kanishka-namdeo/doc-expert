@@ -8,7 +8,7 @@ React component library. Contains shadcn/ui components and custom application co
 
 - UI component primitives (shadcn/ui)
 - Theme provider and theme switching logic
-- Application-specific composite components
+- Application-specific composite components including `app-shell`, `app-sidebar`, `page-header`, `chat-header`, `confirm-dialog`, and `page-loading`
 
 ## Local Contracts
 

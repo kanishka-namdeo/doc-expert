@@ -98,8 +98,8 @@ export async function GET(request: NextRequest) {
           try {
             const parts = JSON.parse(msg.content as string);
             if (Array.isArray(parts)) {
-              const textParts = parts.filter((p: any) => p.type === 'text');
-              snippet = textParts.map((p: any) => p.text).join(' ').slice(0, 200);
+              const textParts = parts.filter((p: { type: string }) => p.type === 'text');
+              snippet = textParts.map((p: { type: string; text: string }) => p.text).join(' ').slice(0, 200);
             }
           } catch {
             snippet = String(msg.content).slice(0, 200);
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
           const points = data.result?.points || [];
 
           // Filter points whose text contains the query
-          const matchingPoints = points.filter((p: any) =>
+          const matchingPoints = points.filter((p: { payload?: { text?: string } }) =>
             p.payload?.text?.toLowerCase().includes(q.toLowerCase())
           );
 

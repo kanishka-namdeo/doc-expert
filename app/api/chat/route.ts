@@ -53,6 +53,7 @@ export async function POST(req: Request) {
           userId,
           orgId,
           title: 'New Conversation',
+          collectionId: collectionId ?? null,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -63,12 +64,17 @@ export async function POST(req: Request) {
     // Save user message to database
     const lastUserMessage = messages.filter(m => m.role === 'user').pop();
     if (lastUserMessage) {
+      // Handle both formats: parts array or content string
+      const messageContent = lastUserMessage.parts 
+        ? JSON.stringify(lastUserMessage.parts)
+        : lastUserMessage.content || '';
+      
       await db.insert(message).values({
         id: crypto.randomUUID(),
         conversationId: activeConversationId,
         orgId,
         role: 'user',
-        content: JSON.stringify(lastUserMessage.parts),
+        content: messageContent,
         createdAt: new Date(),
       });
     }
@@ -165,6 +171,11 @@ Keep each under 60 characters. Do not include any other text after the SUGGESTIO
             mediaType: 'application/pdf',
             title: source.fileName,
             filename: source.fileName,
+            providerMetadata: {
+              'doc-expert': {
+                excerpt: source.text,
+              },
+            },
           });
         });
 

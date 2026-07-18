@@ -131,7 +131,7 @@ test.describe('Enterprise Features', () => {
   let userA2: TestUser; // Regular user in org A
   let userA3: TestUser; // Another user in org A (for group tests)
   let userB1: TestUser; // User in org B (cross-org isolation)
-  let groupId = '';
+  const groupId = '';
   let sharedDoc: TestDocument;
 
   test.beforeAll(async () => {

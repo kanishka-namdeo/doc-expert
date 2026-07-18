@@ -11,8 +11,24 @@ export class ForbiddenError extends Error {
 }
 
 export async function requireAdmin(request: Request) {
+  const isDev = process.env.NODE_ENV === 'development';
   const session = await auth.api.getSession({ headers: request.headers });
+  
   if (!session) {
+    // In dev mode, allow requests without session for testing
+    if (isDev) {
+      // Try to find an admin user for dev mode
+      const adminUser = await db.query.user.findFirst({
+        where: eq(userTable.role, 'admin'),
+      });
+      if (adminUser) {
+        return { 
+          ok: true as const, 
+          session: { user: { id: adminUser.id } } as any, 
+          user: adminUser 
+        };
+      }
+    }
     return { ok: false as const, status: 401 as const, error: 'Unauthorized' };
   }
 

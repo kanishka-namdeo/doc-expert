@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/auth/rbac';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auditLog, user } from '@/lib/db/schema';
-import { eq, desc, like, and, sql, between, count } from 'drizzle-orm';
+import { eq, desc, like, and, sql, between, count, inArray } from 'drizzle-orm';
 import { getLogger } from '@/lib/logger';
 import { z } from 'zod';
 
@@ -12,10 +12,10 @@ const logger = getLogger('api/admin/audit');
 const querySchema = z.object({
   page: z.string().optional().default('1'),
   limit: z.string().optional().default('50'),
-  userId: z.string().optional(),
-  action: z.string().optional(),
-  fromDate: z.string().optional(),
-  toDate: z.string().optional(),
+  userId: z.string().nullable().optional(),
+  action: z.string().nullable().optional(),
+  fromDate: z.string().nullable().optional(),
+  toDate: z.string().nullable().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -46,15 +46,15 @@ export async function GET(request: NextRequest) {
     });
     const adminOrgId = adminUser?.orgId;
 
-    const conditions = [];
+    const conditions: ReturnType<typeof eq>[] = [];
     if (adminOrgId) conditions.push(eq(auditLog.orgId, adminOrgId));
     if (userId) conditions.push(eq(auditLog.userId, userId));
     if (action) conditions.push(eq(auditLog.action, action));
-    if (fromDate) conditions.push(sql`${auditLog.timestamp} >= ${new Date(fromDate).getTime()}`);
-    if (toDate) conditions.push(sql`${auditLog.timestamp} <= ${new Date(toDate).getTime()}`);
+    if (fromDate) conditions.push(sql`${auditLog.timestamp} >= ${new Date(fromDate).getTime()}` as ReturnType<typeof eq>);
+    if (toDate) conditions.push(sql`${auditLog.timestamp} <= ${new Date(toDate).getTime()}` as ReturnType<typeof eq>);
 
     const whereClause = conditions.length > 0
-      ? conditions.reduce((a, b) => sql`${a} AND ${b}`)
+      ? conditions.reduce((a, b) => and(a, b)!)
       : undefined;
 
     const logs = await db
@@ -67,23 +67,22 @@ export async function GET(request: NextRequest) {
         metadata: auditLog.metadata,
       })
       .from(auditLog)
-      .where(whereClause as any)
+      .where(whereClause)
       .orderBy(desc(auditLog.timestamp))
       .limit(limit)
       .offset(offset);
 
     // Enrich with user emails
     const userIds = [...new Set(logs.map((log) => log.userId))];
-    const users = await db
-      .select({ id: user.id, email: user.email })
-      .from(user)
-      .where(sql`${user.id} IN (${userIds})`);
+    const users = userIds.length > 0
+      ? await db.select({ id: user.id, email: user.email }).from(user).where(inArray(user.id, userIds))
+      : [];
     const userMap = new Map(users.map((u) => [u.id, u.email]));
 
     const [countResult] = await db
       .select({ count: count() })
       .from(auditLog)
-      .where(whereClause as any);
+      .where(whereClause);
 
     return NextResponse.json({
       logs: logs.map((log) => ({

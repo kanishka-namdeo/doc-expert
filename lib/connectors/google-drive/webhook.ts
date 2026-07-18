@@ -1,7 +1,9 @@
 import type { NextRequest } from 'next/server';
 import type { WebhookDelta, WebhookConfig, OAuthTokens } from '../types';
+import { randomUUID } from 'node:crypto';
 
 const WATCH_URL = 'https://www.googleapis.com/drive/v3/channels/stop';
+const WATCH_CREATE_URL = 'https://www.googleapis.com/drive/v3/files/watch';
 
 export function getWebhookConfig(): WebhookConfig {
   return {
@@ -58,4 +60,34 @@ export async function stopWebhook(
   } catch {
     // Best-effort; ignore errors on revoke.
   }
+}
+
+/**
+ * Create a webhook subscription for Google Drive.
+ */
+export async function createSubscription(
+  tokens: OAuthTokens,
+  webhookUrl: string,
+): Promise<string> {
+  const res = await fetch(WATCH_CREATE_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${tokens.accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      id: randomUUID(),
+      type: 'web_hook',
+      address: webhookUrl,
+      token: process.env.CONNECTOR_WEBHOOK_SECRET ?? 'default-secret',
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Google Drive watch failed: ${res.status} ${text}`);
+  }
+
+  const data = (await res.json()) as { id: string };
+  return data.id;
 }

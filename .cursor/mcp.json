@@ -33,9 +33,7 @@
       ]
     },
     "github": {
-      "url": "https://api.githubcopilot.com/mcp/",
-      "headers": {
-      }
+      "url": "https://api.githubcopilot.com/mcp/"
     },
     "ESLint": {
       "type": "stdio",

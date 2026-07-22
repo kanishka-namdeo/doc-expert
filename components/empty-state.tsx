@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Upload, FileText, Sparkles } from 'lucide-react';
+import { MessageSquare, Upload, FileText, Sparkles, Keyboard } from 'lucide-react';
 
 interface EmptyStateProps {
   hasDocuments: boolean;
@@ -57,6 +57,19 @@ export function EmptyState({ hasDocuments, onSuggestionClick, onUploadClick }: E
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="mt-10 flex items-center gap-4 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Keyboard className="h-3 w-3" />
+          <kbd className="rounded border px-1 font-mono">Ctrl+K</kbd> to search
+        </span>
+        <span className="flex items-center gap-1">
+          <kbd className="rounded border px-1 font-mono">Ctrl+U</kbd> to upload
+        </span>
+        <span className="flex items-center gap-1">
+          <kbd className="rounded border px-1 font-mono">?</kbd> for shortcuts
+        </span>
       </div>
     </div>
   );

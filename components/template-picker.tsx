@@ -13,7 +13,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Search, Plus, Trash2, Copy, BookTemplate, Loader2 } from 'lucide-react';
+import { Search, Plus, Trash2, Copy, BookTemplate, Loader2, Star } from 'lucide-react';
+import { usePinning } from '@/hooks/use-pinning';
 
 interface Template {
   id: string;
@@ -41,6 +42,7 @@ export function TemplatePicker({ open, onOpenChange, onSelect }: TemplatePickerP
   const [newCategory, setNewCategory] = useState('custom');
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const { pin, unpin, isPinned } = usePinning();
 
   async function loadTemplates() {
     setLoading(true);
@@ -183,50 +185,69 @@ export function TemplatePicker({ open, onOpenChange, onSelect }: TemplatePickerP
                   {Object.entries(groupByCategory(userTemplates)).map(([category, tpls]) => (
                     <div key={category}>
                       <div className="text-[10px] text-muted-foreground mb-1 capitalize">{category}</div>
-                      {tpls.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => {
-                            onSelect(t.prompt);
-                            onOpenChange(false);
-                          }}
-                          className="w-full text-left p-3 rounded-md border bg-card hover:bg-accent transition-colors group"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm">{t.title}</span>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigator.clipboard.writeText(t.prompt);
-                                }}
-                                title="Copy prompt"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(t.id);
-                                }}
-                                disabled={deleting === t.id}
-                                title="Delete template"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                      {tpls.map((t) => {
+                        const pinned = isPinned(t.id, 'template');
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => {
+                              onSelect(t.prompt);
+                              onOpenChange(false);
+                            }}
+                            className="w-full text-left p-3 rounded-md border bg-card hover:bg-accent transition-colors group"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-sm">{t.title}</span>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (pinned) {
+                                      unpin(t.id, 'template');
+                                    } else {
+                                      pin(t.id, 'template', t.title);
+                                    }
+                                  }}
+                                  title={pinned ? 'Unpin template' : 'Pin template'}
+                                >
+                                  <Star className={`h-3 w-3 ${pinned ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(t.prompt);
+                                  }}
+                                  title="Copy prompt"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(t.id);
+                                  }}
+                                  disabled={deleting === t.id}
+                                  title="Delete template"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                            {t.prompt}
-                          </p>
-                        </button>
-                      ))}
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                              {t.prompt}
+                            </p>
+                          </button>
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
@@ -243,26 +264,47 @@ export function TemplatePicker({ open, onOpenChange, onSelect }: TemplatePickerP
                   {Object.entries(groupByCategory(systemTemplates)).map(([category, tpls]) => (
                     <div key={category}>
                       <div className="text-[10px] text-muted-foreground mb-1 capitalize">{category}</div>
-                      {tpls.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => {
-                            onSelect(t.prompt);
-                            onOpenChange(false);
-                          }}
-                          className="w-full text-left p-3 rounded-md border bg-card hover:bg-accent transition-colors"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm">{t.title}</span>
-                            <Badge variant="outline" className="text-[10px]">
-                              System
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                            {t.prompt}
-                          </p>
-                        </button>
-                      ))}
+                      {tpls.map((t) => {
+                        const pinned = isPinned(t.id, 'template');
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => {
+                              onSelect(t.prompt);
+                              onOpenChange(false);
+                            }}
+                            className="w-full text-left p-3 rounded-md border bg-card hover:bg-accent transition-colors group"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-sm">{t.title}</span>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (pinned) {
+                                      unpin(t.id, 'template');
+                                    } else {
+                                      pin(t.id, 'template', t.title);
+                                    }
+                                  }}
+                                  title={pinned ? 'Unpin template' : 'Pin template'}
+                                >
+                                  <Star className={`h-3 w-3 ${pinned ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                                </Button>
+                                <Badge variant="outline" className="text-[10px]">
+                                  System
+                                </Badge>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                              {t.prompt}
+                            </p>
+                          </button>
+                        );
+                      })}
                     </div>
                   ))}
                 </div>

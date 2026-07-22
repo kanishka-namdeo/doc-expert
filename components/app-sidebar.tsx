@@ -16,6 +16,7 @@ import {
   Shield,
   Activity,
   BookTemplate,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +30,7 @@ const userLinks = [
   { href: '/collections', label: 'Collections', icon: FolderOpen },
   { href: '/templates', label: 'Templates', icon: BookTemplate },
   { href: '/settings/connectors', label: 'Connectors', icon: Cloud },
+  { href: '/settings/preferences', label: 'Preferences', icon: Settings },
   { href: '/profile', label: 'Profile', icon: User },
 ];
 

@@ -111,7 +111,7 @@ export function ChatHeader({
             variant="ghost"
             size="icon"
             onClick={onOpenHistory}
-            title="Conversation history"
+            title="Conversation history (Ctrl+Shift+K)"
             className="h-9 w-9 sm:h-10 sm:w-10"
           >
             <MessageSquare className="h-4 w-4" />
@@ -184,7 +184,7 @@ export function ChatHeader({
           {/* Upload Dialog */}
           <Dialog open={showUpload} onOpenChange={setShowUpload}>
             <DialogTrigger render={(props) => (
-              <Button {...props} variant="ghost" size="icon" title="Upload document" className="h-9 w-9 sm:h-10 sm:w-10">
+              <Button {...props} variant="ghost" size="icon" title="Upload document (Ctrl+U)" className="h-9 w-9 sm:h-10 sm:w-10">
                 <Upload className="h-4 w-4" />
               </Button>
             )} />

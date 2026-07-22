@@ -2,13 +2,14 @@
 
 import type { DocumentInfo } from '@/lib/types/qdrant';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Loader2, Trash2, File, FileSpreadsheet, FileCode, Globe, CheckSquare } from 'lucide-react';
+import { FileText, Loader2, Trash2, File, FileSpreadsheet, FileCode, Globe, CheckSquare, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useLogger } from '@/hooks/use-logger';
+import { usePinning } from '@/hooks/use-pinning';
 import { toast } from 'sonner';
 import {
   Sheet,
@@ -18,6 +19,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ListEmptyState, ListErrorState } from '@/components/list-empty-state';
 import { SkeletonDocumentList } from '@/components/skeleton/skeleton-document-list';
@@ -119,6 +126,122 @@ function getStatusBadge(status: string | undefined) {
   }
 }
 
+function DocumentRow({
+  doc,
+  pinned,
+  enableBatchOperations,
+  batchSelectedIds,
+  deletingId,
+  onDocumentClick,
+  onToggleBatch,
+  onTogglePin,
+  onDelete,
+}: {
+  doc: ExtendedDocumentInfo;
+  pinned: boolean;
+  enableBatchOperations: boolean;
+  batchSelectedIds: Set<string>;
+  deletingId: string | null;
+  onDocumentClick: (id: string) => void;
+  onToggleBatch: (id: string) => void;
+  onTogglePin: () => void;
+  onDelete: () => void;
+}) {
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+
+  return (
+    <>
+      <div
+        className="flex items-start gap-2"
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setContextMenuOpen(true);
+        }}
+      >
+        {enableBatchOperations && (
+          <div className="pt-3 pl-1">
+            <Checkbox
+              checked={batchSelectedIds.has(doc.documentId)}
+              onCheckedChange={() => onToggleBatch(doc.documentId)}
+              aria-label={`Select ${doc.fileName}`}
+            />
+          </div>
+        )}
+        <button
+          onClick={() => onDocumentClick(doc.documentId)}
+          className="flex-1 rounded-lg border p-3 pr-16 text-left transition-colors hover:bg-accent min-h-12"
+        >
+          <div className="flex items-start gap-3">
+            {getFileIcon(doc.fileName)}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="truncate font-medium text-sm">
+                  {doc.fileName}
+                </p>
+                {getAccessBadge(doc.accessLevel)}
+                {getStatusBadge(doc.status)}
+                {doc.sharedWithCount !== undefined && doc.sharedWithCount > 0 && (
+                  <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                    Shared with {doc.sharedWithCount}
+                  </Badge>
+                )}
+                {doc.source && doc.source !== 'upload' && (
+                  <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                    <Globe className="mr-1 h-3 w-3" />
+                    {doc.source.replace('-', ' ')}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {formatDate(doc.uploadedAt)}
+              </p>
+            </div>
+          </div>
+        </button>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        className={`absolute right-8 top-2 transition-opacity ${pinned ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onTogglePin();
+        }}
+        aria-label={pinned ? 'Unpin document' : 'Pin document'}
+      >
+        <Star className={`h-4 w-4 ${pinned ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute right-2 top-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        disabled={deletingId === doc.documentId}
+      >
+        {deletingId === doc.documentId ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Trash2 className="h-4 w-4" />
+        )}
+      </Button>
+      <DropdownMenu open={contextMenuOpen} onOpenChange={setContextMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <span className="absolute top-0 right-0 h-0 w-0 overflow-hidden" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={onTogglePin}>
+            <Star className={`mr-2 h-4 w-4 ${pinned ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+            {pinned ? 'Unpin' : 'Pin'}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+}
+
 function DocumentListContent({
   standalone,
   filter = 'owned',
@@ -148,6 +271,7 @@ function DocumentListContent({
   const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(new Set());
   const [batchDeleting, setBatchDeleting] = useState(false);
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
+  const { pin, unpin, isPinned } = usePinning();
 
   async function fetchDocuments() {
     try {
@@ -377,68 +501,24 @@ function DocumentListContent({
           <span>Select all</span>
         </li>
       )}
-      {documents.map((doc) => (
-        <li key={doc.documentId} className="group relative" data-testid="document-row" data-document-id={doc.documentId}>
-          <div className="flex items-start gap-2">
-            {enableBatchOperations && (
-              <div className="pt-3 pl-1">
-                <Checkbox
-                  checked={batchSelectedIds.has(doc.documentId)}
-                  onCheckedChange={() => toggleBatchSelection(doc.documentId)}
-                  aria-label={`Select ${doc.fileName}`}
-                />
-              </div>
-            )}
-            <button
-              onClick={() => handleDocumentClick(doc.documentId)}
-              className="flex-1 rounded-lg border p-3 pr-10 text-left transition-colors hover:bg-accent min-h-12"
-            >
-              <div className="flex items-start gap-3">
-                {getFileIcon(doc.fileName)}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="truncate font-medium text-sm">
-                      {doc.fileName}
-                    </p>
-                    {getAccessBadge(doc.accessLevel)}
-                    {getStatusBadge(doc.status)}
-                    {doc.sharedWithCount !== undefined && doc.sharedWithCount > 0 && (
-                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">
-                        Shared with {doc.sharedWithCount}
-                      </Badge>
-                    )}
-                    {doc.source && doc.source !== 'upload' && (
-                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
-                        <Globe className="mr-1 h-3 w-3" />
-                        {doc.source.replace('-', ' ')}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDate(doc.uploadedAt)}
-                  </p>
-                </div>
-              </div>
-            </button>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute right-2 top-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(doc.documentId, doc.fileName);
-            }}
-            disabled={deletingId === doc.documentId}
-          >
-            {deletingId === doc.documentId ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-          </Button>
-        </li>
-      ))}
+      {documents.map((doc) => {
+        const pinned = isPinned(doc.documentId, 'document');
+        return (
+          <li key={doc.documentId} className="group relative" data-testid="document-row" data-document-id={doc.documentId}>
+            <DocumentRow
+              doc={doc}
+              pinned={pinned}
+              enableBatchOperations={enableBatchOperations}
+              batchSelectedIds={batchSelectedIds}
+              deletingId={deletingId}
+              onDocumentClick={handleDocumentClick}
+              onToggleBatch={toggleBatchSelection}
+              onTogglePin={() => pinned ? unpin(doc.documentId, 'document') : pin(doc.documentId, 'document', doc.fileName)}
+              onDelete={() => handleDelete(doc.documentId, doc.fileName)}
+            />
+          </li>
+        );
+      })}
     </ul>
 
     <ConfirmDialog

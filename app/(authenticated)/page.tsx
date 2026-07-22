@@ -25,7 +25,8 @@ import { useOnboarding } from '@/hooks/use-onboarding';
 import { ProgressChecklist } from '@/components/progress-checklist';
 import { useProgressChecklist } from '@/hooks/use-progress-checklist';
 import { useOnboardingHints } from '@/hooks/use-onboarding-hints';
-import { QuickAccessBar } from '@/components/quick-access/quick-access-bar';
+import { PowerBar } from '@/components/power-bar/power-bar';
+import type { SearchScope } from '@/components/command-palette/scope-filter';
 
 export default function ChatPage() {
   const logger = useLogger('chat-page');
@@ -193,6 +194,16 @@ export default function ChatPage() {
   useEffect(() => {
     if (selectedModel) {
       localStorage.setItem('doc-expert:model-preference', selectedModel);
+      // Track recently used models for cycling
+      try {
+        const recentRaw = localStorage.getItem('doc-expert:recent-models');
+        const recent = recentRaw ? JSON.parse(recentRaw) : [];
+        const filtered = recent.filter((m: string) => m !== selectedModel);
+        filtered.unshift(selectedModel);
+        localStorage.setItem('doc-expert:recent-models', JSON.stringify(filtered.slice(0, 10)));
+      } catch {
+        // Ignore storage errors
+      }
     }
   }, [selectedModel]);
 
@@ -210,6 +221,60 @@ export default function ChatPage() {
     setShowUpload(true);
   }, []);
 
+  const handleGoToDocuments = useCallback(() => {
+    window.location.href = '/documents';
+  }, []);
+
+  const handleGoToCollections = useCallback(() => {
+    window.location.href = '/collections';
+  }, []);
+
+  const handleCycleModel = useCallback(() => {
+    // Cycle through available models — read from localStorage list of recently used models
+    // or fall back to the model list from the API
+    const usedModels = (() => {
+      try {
+        const stored = localStorage.getItem('doc-expert:recent-models');
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    })();
+
+    if (usedModels.length <= 1) return;
+
+    const currentIndex = usedModels.indexOf(selectedModel);
+    const nextIndex = (currentIndex + 1) % usedModels.length;
+    setSelectedModel(usedModels[nextIndex]);
+  }, [selectedModel, setSelectedModel]);
+
+  const handleFocusCollectionFilter = useCallback(() => {
+    // Focus the collection picker by dispatching a custom event that CollectionPicker listens for
+    const selectEl = document.getElementById('collection-select');
+    if (selectEl) {
+      selectEl.focus();
+      // Trigger the select dropdown by clicking it
+      selectEl.click();
+    }
+  }, []);
+
+  const handleCycleScope = useCallback(() => {
+    // Dispatch a custom event that the command palette scope filter listens for
+    const scopes: SearchScope[] = ['all', 'documents', 'collections', 'semantic'];
+    const currentScope = (() => {
+      try {
+        const stored = localStorage.getItem('doc-expert:search-scope-chat');
+        return (stored as SearchScope) || 'all';
+      } catch {
+        return 'all';
+      }
+    })();
+    const currentIndex = scopes.indexOf(currentScope);
+    const nextScope = scopes[(currentIndex + 1) % scopes.length];
+    localStorage.setItem('doc-expert:search-scope-chat', nextScope);
+    window.dispatchEvent(new CustomEvent('doc-expert:cycle-scope', { detail: nextScope }));
+  }, []);
+
   useKeyboardShortcuts({
     onFocusInput: () => inputRef.current?.focus(),
     onNewConversation: handleNewConversation,
@@ -218,6 +283,11 @@ export default function ChatPage() {
     onOpenSearch: () => setSearchOpen(true),
     onOpenTemplates: () => setTemplatePickerOpen(true),
     onOpenShortcutsHelp: () => setShortcutsDialogOpen(true),
+    onGoToDocuments: handleGoToDocuments,
+    onGoToCollections: handleGoToCollections,
+    onCycleModel: handleCycleModel,
+    onFocusCollectionFilter: handleFocusCollectionFilter,
+    onCycleScope: handleCycleScope,
     inputRef: inputRef as React.RefObject<HTMLInputElement>,
   });
 
@@ -250,7 +320,16 @@ export default function ChatPage() {
         />
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-          <QuickAccessBar selectedCollectionId={selectedCollectionId} />
+          <PowerBar
+            selectedCollectionId={selectedCollectionId}
+            setSelectedCollectionId={setSelectedCollectionId}
+            selectedModel={selectedModel}
+            setSelectedModel={setSelectedModel}
+            onSearchSelect={(query) => {
+              setInput(query);
+              inputRef.current?.focus();
+            }}
+          />
           {messages.length === 0 ? (
             <EmptyState
               hasDocuments={hasDocuments ?? false}

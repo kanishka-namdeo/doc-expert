@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FolderOpen, Trash2, Loader2, ArrowLeft, FileText, X } from 'lucide-react';
+import { FolderOpen, Trash2, Loader2, ArrowLeft, FileText, X, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useLogger } from '@/hooks/use-logger';
+import { usePinning } from '@/hooks/use-pinning';
 import { toast } from 'sonner';
 import { ListEmptyState, ListErrorState, ListLoadingState } from '@/components/list-empty-state';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -47,6 +48,7 @@ export default function CollectionDetailPage() {
   const [addingDoc, setAddingDoc] = useState(false);
   const logger = useLogger('collection-detail');
   const { updateContext: updateHintContext } = useOnboardingHints();
+  const { pin, unpin, isPinned } = usePinning();
 
   async function fetchCollection() {
     try {
@@ -241,6 +243,23 @@ export default function CollectionDetailPage() {
             </>
           ) : (
             <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!collection) return;
+                  const pinned = isPinned(collectionId, 'collection');
+                  if (pinned) {
+                    unpin(collectionId, 'collection');
+                  } else {
+                    pin(collectionId, 'collection', collection.name);
+                  }
+                }}
+                aria-label={isPinned(collectionId, 'collection') ? 'Unpin collection' : 'Pin collection'}
+              >
+                <Star className={`mr-1 h-3 w-3 ${isPinned(collectionId, 'collection') ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                {isPinned(collectionId, 'collection') ? 'Unpin' : 'Pin'}
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
                 Edit
               </Button>

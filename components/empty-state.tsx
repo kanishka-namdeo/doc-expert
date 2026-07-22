@@ -22,10 +22,9 @@ export function EmptyState({ hasDocuments, onSuggestionClick, onUploadClick }: E
       <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
         <Sparkles className="h-8 w-8 text-primary" />
       </div>
-      <h2 className="mb-2 text-2xl font-semibold">Welcome to Doc Expert</h2>
+      <h2 className="mb-2 text-2xl font-semibold">Start a conversation</h2>
       <p className="mb-6 max-w-md text-sm text-muted-foreground">
-        Your sovereign AI document assistant. Upload documents and ask questions
-        to get AI-powered answers with citations.
+        Upload a document and ask questions to get AI-powered answers with citations
       </p>
 
       {!hasDocuments && (
@@ -43,7 +42,7 @@ export function EmptyState({ hasDocuments, onSuggestionClick, onUploadClick }: E
       )}
 
       <div className="w-full max-w-md">
-        <p className="mb-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        <p className="mb-3 text-xs font-medium text-muted-foreground tracking-wider">
           Suggested prompts
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

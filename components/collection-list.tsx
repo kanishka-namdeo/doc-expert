@@ -18,8 +18,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useLogger } from '@/hooks/use-logger';
 import { toast } from 'sonner';
-import { ListEmptyState, ListErrorState, ListLoadingState } from '@/components/list-empty-state';
+import { ListEmptyState, ListErrorState } from '@/components/list-empty-state';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { SkeletonCollectionList } from '@/components/skeleton/skeleton-collection-list';
 
 export interface Collection {
   id: string;
@@ -131,18 +132,21 @@ export function CollectionList({ standalone = false }: { standalone?: boolean })
 
   const content = (
     <>
-      {loading && <ListLoadingState />}
+      {loading && <SkeletonCollectionList />}
       {!loading && error && <ListErrorState error={error} onRetry={fetchCollections} />}
 
       {!loading && !error && collections.length === 0 && (
         <ListEmptyState
           message="No collections yet"
-          description="Create a collection to organize documents for scoped Q&A sessions"
+          description="Collections let you group documents and ask focused questions about specific topics"
           icon={<FolderOpen className="h-10 w-10 text-muted-foreground" />}
           action={{
-            label: 'Create Collection',
+            label: 'Create your first collection',
             onClick: () => setCreateOpen(true),
           }}
+          secondaryActions={[
+            { label: 'Learn more about collections', onClick: () => {} },
+          ]}
         />
       )}
 

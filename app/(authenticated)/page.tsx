@@ -7,21 +7,28 @@ import { ChatHeader } from '@/components/chat-header';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
-import { DocumentUpload } from '@/components/document-upload';
 import { ConversationSidebar } from '@/components/conversation-sidebar';
 import { CitationPanel } from '@/components/citation-panel';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/empty-state';
-import { SearchDialog } from '@/components/search-dialog';
-import { CollectionPicker } from '@/components/collection-picker';
+import { EnhancedCommandPalette } from '@/components/command-palette/enhanced-command-palette';
+import { ContextualPreviewPopover } from '@/components/preview/contextual-preview-popover';
 import { TemplatePicker } from '@/components/template-picker';
 import { BookTemplate } from 'lucide-react';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
+import { useLogger } from '@/hooks/use-logger';
 import { ShareDialog } from '@/components/share-dialog';
 import { FollowUpSuggestions } from '@/components/follow-up-suggestions';
 import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { OnboardingWizard } from '@/components/onboarding-wizard';
+import { useOnboarding } from '@/hooks/use-onboarding';
+import { ProgressChecklist } from '@/components/progress-checklist';
+import { useProgressChecklist } from '@/hooks/use-progress-checklist';
+import { useOnboardingHints } from '@/hooks/use-onboarding-hints';
+import { QuickAccessBar } from '@/components/quick-access/quick-access-bar';
 
 export default function ChatPage() {
+  const logger = useLogger('chat-page');
   const [selectedModel, setSelectedModel] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('doc-expert:model-preference') || '';
@@ -45,6 +52,10 @@ export default function ChatPage() {
   const [shareDialogConversationId, setShareDialogConversationId] = useState<string | null>(null);
   const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<Record<string, string[]>>({});
+  const [isConversationDrawerOpen, setIsConversationDrawerOpen] = useState(false);
+  const { shouldShowWizard, isChecking, completeOnboarding, skipOnboarding } = useOnboarding();
+  const { items, completedCount, totalCount, allComplete, isDismissed, dismiss } = useProgressChecklist();
+  const { updateContext: updateHintContext } = useOnboardingHints();
 
   const transport = new DefaultChatTransport({
     api: '/api/chat',
@@ -72,7 +83,7 @@ export default function ChatPage() {
             }),
           });
         } catch (err) {
-          console.error('Failed to save assistant message:', err);
+          logger.error('Failed to save assistant message', { err: err as unknown });
         }
       }
 
@@ -118,7 +129,7 @@ export default function ChatPage() {
         });
 
         if (!response.ok) {
-          console.error('Failed to load messages');
+          logger.error('Failed to load messages', { conversationId: currentConversationId, status: response.status });
           return;
         }
 
@@ -139,7 +150,7 @@ export default function ChatPage() {
         });
         setMessages(parsedMessages);
       } catch (err) {
-        console.error('Failed to load messages:', err);
+        logger.error('Failed to load messages', { err: err as unknown, conversationId: currentConversationId });
       }
     }
 
@@ -153,18 +164,28 @@ export default function ChatPage() {
         const res = await fetch('/api/documents', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
-          setHasDocuments((data.documents?.length ?? 0) > 0);
+          const docCount = data.documents?.length ?? 0;
+          setHasDocuments(docCount > 0);
+          updateHintContext({ hasDocuments: docCount > 0, documentCount: docCount });
         }
       } catch {
         setHasDocuments(false);
       }
     }
     checkDocuments();
-  }, []);
+  }, [updateHintContext]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    updateHintContext({
+      messageCount: messages.length,
+      hasCollection: !!selectedCollectionId,
+      conversationMessageCount: messages.length,
+    });
+  }, [messages.length, selectedCollectionId, updateHintContext]);
 
   const isStreaming = status === 'streaming' || status === 'submitted';
 
@@ -202,13 +223,17 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen">
-      <ConversationSidebar
-        currentConversationId={currentConversationId}
-        setCurrentConversationId={setCurrentConversationId}
-        selectedCollectionId={selectedCollectionId}
-        setSelectedCollectionId={setSelectedCollectionId}
-        onShare={handleShareConversation}
-      />
+      <Sheet open={isConversationDrawerOpen} onOpenChange={setIsConversationDrawerOpen}>
+        <SheetContent side="left" className="w-64 p-0">
+          <ConversationSidebar
+            currentConversationId={currentConversationId}
+            setCurrentConversationId={setCurrentConversationId}
+            selectedCollectionId={selectedCollectionId}
+            setSelectedCollectionId={setSelectedCollectionId}
+            onShare={handleShareConversation}
+          />
+        </SheetContent>
+      </Sheet>
       <div className="flex flex-1 flex-col">
         <ChatHeader
           selectedModel={selectedModel}
@@ -220,9 +245,12 @@ export default function ChatPage() {
           selectedCollectionId={selectedCollectionId}
           setSelectedCollectionId={setSelectedCollectionId}
           onOpenShortcutsHelp={() => setShortcutsDialogOpen(true)}
+          onOpenHistory={() => setIsConversationDrawerOpen(true)}
+          onOpenSearch={() => setSearchOpen(true)}
         />
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+          <QuickAccessBar selectedCollectionId={selectedCollectionId} />
           {messages.length === 0 ? (
             <EmptyState
               hasDocuments={hasDocuments ?? false}
@@ -288,14 +316,18 @@ export default function ChatPage() {
                               <div key={i}>
                                 {segments.map((seg, j) => {
                                   if (seg.type === 'citation') {
-                                    return (
+                                    const sources = m.parts?.filter(
+                                      (p) => p.type === 'source-document'
+                                    ) || [];
+                                    const sourcePart = sources[seg.num! - 1];
+                                    const sourceId = sourcePart && typeof sourcePart === 'object'
+                                      ? String((sourcePart as Record<string, unknown>).sourceId || '')
+                                      : '';
+                                    
+                                    const badge = (
                                       <button
                                         key={j}
                                         onClick={() => {
-                                          const sources = m.parts?.filter(
-                                            (p) => p.type === 'source-document'
-                                          ) || [];
-                                          const sourcePart = sources[seg.num! - 1];
                                           if (sourcePart && typeof sourcePart === 'object') {
                                             const sourceObj = sourcePart as Record<string, unknown>;
                                             const providerMeta = sourceObj.providerMetadata as Record<string, Record<string, unknown>> | undefined;
@@ -315,6 +347,20 @@ export default function ChatPage() {
                                         {seg.num}
                                       </button>
                                     );
+
+                                    if (sourceId) {
+                                      return (
+                                        <ContextualPreviewPopover
+                                          key={j}
+                                          type="document"
+                                          id={sourceId}
+                                          side="top"
+                                        >
+                                          {badge}
+                                        </ContextualPreviewPopover>
+                                      );
+                                    }
+                                    return badge;
                                   }
                                   return (
                                     <ReactMarkdown
@@ -418,7 +464,7 @@ export default function ChatPage() {
         source={selectedSource}
         onClose={() => setSelectedSource(null)}
       />
-      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <EnhancedCommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
       <ShareDialog
         conversationId={shareDialogConversationId || ''}
         open={shareDialogOpen}
@@ -435,6 +481,21 @@ export default function ChatPage() {
       <KeyboardShortcutsDialog
         open={shortcutsDialogOpen}
         onOpenChange={setShortcutsDialogOpen}
+      />
+      {!isChecking && (
+        <OnboardingWizard
+          open={shouldShowWizard}
+          onClose={skipOnboarding}
+          onComplete={completeOnboarding}
+        />
+      )}
+      <ProgressChecklist
+        items={items}
+        completedCount={completedCount}
+        totalCount={totalCount}
+        allComplete={allComplete}
+        isDismissed={isDismissed}
+        onDismiss={dismiss}
       />
     </div>
   );

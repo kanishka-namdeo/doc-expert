@@ -143,7 +143,7 @@ interface OnboardingWizardProps {
 
 ### Trigger
 
-Appears after the wizard completes (or is skipped), as a floating widget in the bottom-right corner of the chat page.
+Appears after the wizard completes (or is skipped), as a floating widget in the bottom-right corner of the **chat page only** (not on other pages like Documents, Collections, etc.).
 
 ### Visual Design
 

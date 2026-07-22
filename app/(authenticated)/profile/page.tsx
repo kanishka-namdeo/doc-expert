@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -125,8 +126,11 @@ export default function ProfilePage() {
     }
   };
   return (
-    <div className="container mx-auto max-w-2xl p-6">
-      <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
+    <div className="flex flex-col h-full">
+      <PageHeader title="Account Settings" description="Manage your account preferences" />
+
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="mx-auto max-w-2xl">
 
       {/* Personal Info Card */}
       <Card className="mb-8">
@@ -399,6 +403,8 @@ export default function ProfilePage() {
           />
         </CardContent>
       </Card>
+        </div>
+      </div>
     </div>
   );
 }

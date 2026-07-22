@@ -20,6 +20,8 @@ import { authClient } from '@/lib/auth/client';
 import { useLogger } from '@/hooks/use-logger';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { PageHeader } from '@/components/page-header';
+import { ListEmptyState } from '@/components/list-empty-state';
 
 interface ConnectorInfo {
   id: string;
@@ -188,17 +190,28 @@ export default function ConnectorsSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-4">
-      <h1 className="text-2xl font-semibold mb-2">Connectors</h1>
-      <p className="text-muted-foreground mb-6">
-        Connect external data sources to automatically sync documents.
-      </p>
+    <div className="flex flex-col h-full">
+      <PageHeader title="Connectors" description="Connect external data sources to automatically sync documents." />
+
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="mx-auto max-w-3xl">
 
       {loading ? (
         <div className="flex items-center gap-2 py-8">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span>Loading connectors...</span>
         </div>
+      ) : connectors.length === 0 ? (
+        <ListEmptyState
+          message="No connectors connected"
+          description="Connect external data sources to automatically sync documents"
+          icon={<LinkIcon className="h-10 w-10 text-muted-foreground" />}
+          secondaryActions={[
+            { label: 'Connect Google Drive', onClick: () => handleConnect('google-drive') },
+            { label: 'Connect Microsoft 365', onClick: () => handleConnect('microsoft-365') },
+            { label: 'Learn about connectors', onClick: () => {} },
+          ]}
+        />
       ) : (
         <div className="space-y-4">
           {connectors.map((connector) => (
@@ -323,6 +336,8 @@ export default function ConnectorsSettingsPage() {
         confirmVariant="destructive"
         onConfirm={() => handleDisconnect(disconnectTarget!)}
       />
+        </div>
+      </div>
     </div>
   );
 }

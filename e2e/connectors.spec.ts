@@ -5,18 +5,13 @@ test.describe('Connectors Settings', () => {
     await context.clearCookies();
     await page.goto('/login');
     await page.waitForSelector('form', { timeout: 5000 });
-    await page
-      .locator('label[for="email"]')
-      .locator('..')
-      .locator('input')
-      .fill('editor@docexpert.test');
-    await page
-      .locator('label[for="password"]')
-      .locator('..')
-      .locator('input')
-      .fill('Editor123!');
+    const emailInput = page.getByLabel('Email');
+    await emailInput.fill('editor@docexpert.test');
+    await emailInput.blur();
+    await page.waitForSelector('label[for="password"]', { timeout: 10000 });
+    await page.getByLabel('Password').fill('Editor123!');
     await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL('**', { timeout: 15000 });
+    await page.waitForFunction(() => !window.location.pathname.includes('/login'), { timeout: 15000 });
   });
 
   test('connectors page loads and shows available connectors', async ({
@@ -71,12 +66,11 @@ test.describe('Connectors Settings', () => {
   test('document source badge appears for synced documents', async ({
     page,
   }) => {
-    // Open the documents sheet
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Documents' }).click();
+    // Open the documents page
+    await page.goto('/documents');
 
     // The document list should render without errors
     // (actual source badges only appear for connector-synced docs)
-    await page.waitForSelector('button', { timeout: 5000 });
+    await expect(page.getByRole('heading', { name: 'Documents' })).toBeVisible({ timeout: 10000 });
   });
 });

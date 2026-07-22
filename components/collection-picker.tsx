@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Plus, FolderOpen } from 'lucide-react';
+import { ContextualPreviewPopover } from '@/components/preview/contextual-preview-popover';
 
 interface Collection {
   id: string;
@@ -86,10 +87,12 @@ export function CollectionPicker({ value, onChange }: CollectionPickerProps) {
         <SelectContent>
           <SelectItem value="__all__">All Documents</SelectItem>
           {collections.map((col) => (
-            <SelectItem key={col.id} value={col.id}>
-              {col.name}
-              <span className="ml-1 text-xs text-muted-foreground">({col.docCount})</span>
-            </SelectItem>
+            <ContextualPreviewPopover key={col.id} type="collection" id={col.id} side="right">
+              <SelectItem value={col.id}>
+                {col.name}
+                <span className="ml-1 text-xs text-muted-foreground">({col.docCount})</span>
+              </SelectItem>
+            </ContextualPreviewPopover>
           ))}
           <div className="border-t my-1" />
           <div className="flex gap-1 p-1">

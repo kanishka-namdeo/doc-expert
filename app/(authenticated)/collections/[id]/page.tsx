@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { ListEmptyState, ListErrorState, ListLoadingState } from '@/components/list-empty-state';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DocumentPicker } from '@/components/document-picker';
+import { useOnboardingHints } from '@/hooks/use-onboarding-hints';
 
 interface Document {
   id: string;
@@ -45,6 +46,7 @@ export default function CollectionDetailPage() {
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [addingDoc, setAddingDoc] = useState(false);
   const logger = useLogger('collection-detail');
+  const { updateContext: updateHintContext } = useOnboardingHints();
 
   async function fetchCollection() {
     try {
@@ -59,6 +61,7 @@ export default function CollectionDetailPage() {
       setCollection(data.collection);
       setEditName(data.collection.name);
       setEditDescription(data.collection.description || '');
+      updateHintContext({ collectionDocumentCount: data.collection.documents?.length ?? 0 });
     } catch (err) {
       logger.error('Failed to load collection', { err: err instanceof Error ? err.message : String(err) });
       setError(err instanceof Error ? err.message : 'Failed to load collection');
@@ -275,13 +278,16 @@ export default function CollectionDetailPage() {
             {!loading && error && <ListErrorState error={error} onRetry={fetchCollection} />}
             {!loading && !error && (!collection || collection.documents.length === 0) && (
               <ListEmptyState
-                message="No documents in this collection"
-                description="Add documents to use this collection for scoped Q&A"
+                message="This collection is empty"
+                description="Add documents to start asking scoped questions"
                 icon={<FolderOpen className="h-10 w-10 text-muted-foreground" />}
                 action={{
-                  label: 'Add Document',
+                  label: 'Add documents',
                   onClick: () => setShowAddDoc(true),
                 }}
+                secondaryActions={[
+                  { label: 'Browse your documents', onClick: () => router.push('/documents') },
+                ]}
               />
             )}
 

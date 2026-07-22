@@ -3,51 +3,39 @@ import path from 'path';
 
 test.describe('RAG Flow', () => {
   test.setTimeout(120000); // 2 minutes for LLM responses
+
   test.beforeEach(async ({ page, context }) => {
-    // Clear storage to ensure fresh login
     await context.clearCookies();
-    
-    // Navigate to login first
     await page.goto('/login');
-    
-    // Now clear localStorage after page has loaded
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
-    
-    // Wait for login form to be visible
     await page.waitForSelector('form', { timeout: 5000 });
-    
-    // Login with test account
-    await page.locator('label[for="email"]').locator('..').locator('input').fill('editor@docexpert.test');
-    await page.locator('label[for="password"]').locator('..').locator('input').fill('Editor123!');
+    await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+    const emailInput = page.getByLabel('Email');
+    await emailInput.fill('editor@docexpert.test');
+    await emailInput.blur();
+    await page.waitForSelector('label[for="password"]', { timeout: 10000 });
+    await page.getByLabel('Password').fill('Editor123!');
     await page.getByRole('button', { name: 'Sign In' }).click();
-    
-    // Wait for redirect to home (or already be there)
-    await page.waitForURL('**', { timeout: 15000 });
-    // Ensure we're on the home page
-    if (!page.url().endsWith('/')) {
-      await page.goto('/');
-    }
+    await page.waitForURL(/\/$/, { timeout: 15000 });
   });
 
   test('complete RAG flow: upload, chat, verify citations', async ({ page }) => {
     // Step 1: Verify we're on the chat page
-    await expect(page.getByRole('heading', { name: 'Doc Expert' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Doc Expert', exact: true })).toBeVisible();
     
     // Step 2: Upload a document
     const testFilePath = path.join(process.cwd(), 'test-doc.md');
     
     // Click Upload button to open dialog
-    await page.getByRole('button', { name: /Upload/i }).click();
+    await page.getByRole('button', { name: 'Upload document' }).click();
     
     // Wait for dialog to be visible
     await page.waitForSelector('[data-slot="dialog-content"]', { timeout: 5000 });
     
-    // Find the file input and upload
+    // Use the file input and trigger the dropzone properly
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(testFilePath);
+    // Trigger change event for react-dropzone
+    await fileInput.dispatchEvent('change');
     
     // Wait for upload to complete - look for success toast with chunk count
     // Sonner toasts render in a portal, so we need to wait for the toast element
@@ -85,19 +73,20 @@ test.describe('RAG Flow', () => {
     const testFilePath = path.join(process.cwd(), 'test-doc.md');
     
     // Click Upload button to open dialog
-    await page.getByRole('button', { name: /Upload/i }).click();
+    await page.getByRole('button', { name: 'Upload document' }).click();
     
     // Wait for dialog to be visible
     await page.waitForSelector('[data-slot="dialog-content"]', { timeout: 5000 });
     
+    // Trigger the file input and wait for the dropzone to handle it
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(testFilePath);
     
-    // Should show processing state
-    await expect(page.getByText('Processing document...')).toBeVisible();
+    // Wait for processing state to appear (indicates onDrop was triggered)
+    await expect(page.getByText('Processing document...')).toBeVisible({ timeout: 10000 });
     
-    // Wait for completion
-    await page.waitForSelector('text=Document ingested', { timeout: 60000 });
+    // Wait for completion toast
+    await page.waitForSelector('[data-sonner-toast]:has-text("Document ingested")', { timeout: 60000 });
   });
 
   test('chat with streaming response', async ({ page }) => {

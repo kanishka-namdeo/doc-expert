@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { useLogger } from '@/hooks/use-logger';
 
 interface CitationProps {
   sourceId: string;
@@ -11,6 +12,7 @@ interface CitationProps {
 }
 
 export function Citation({ sourceId, title, filename }: CitationProps) {
+  const logger = useLogger('citation');
   const [isOpen, setIsOpen] = useState(false);
   const [sourceData, setSourceData] = useState<{ text: string; fileName: string; chunkIndex?: number } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -25,7 +27,7 @@ export function Citation({ sourceId, title, filename }: CitationProps) {
         const data = await res.json();
         setSourceData(data);
       } catch (err) {
-        console.error('Failed to fetch source:', err);
+        logger.error('Failed to fetch source', { err: err as unknown, sourceId });
       } finally {
         setLoading(false);
       }

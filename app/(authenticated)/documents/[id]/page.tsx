@@ -5,12 +5,14 @@ import { useParams, useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
-import { FileText, Share2, LayoutList, FileText as FileTextIcon, Globe, Search, Loader2, Brain } from 'lucide-react';
+import { FileText, Share2, LayoutList, FileText as FileTextIcon, Globe, Search, Loader2, Brain, ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DocumentShareDialog } from '@/components/document-share-dialog';
 import { PageHeader } from '@/components/page-header';
 import { PageLoading } from '@/components/page-loading';
 import { cn } from '@/lib/utils';
+import { useLogger } from '@/hooks/use-logger';
+import { useOnboardingHints } from '@/hooks/use-onboarding-hints';
 
 interface DocumentChunk {
   id: string;
@@ -36,8 +38,10 @@ export default function DocumentViewerPage() {
   const [searchMode, setSearchMode] = useState<'text' | 'semantic'>('text');
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [viewMode, setViewMode] = useState<'document' | 'chunks' | 'search'>('document');
+  const logger = useLogger('document-view');
   const [status, setStatus] = useState<string | undefined>();
   const [source, setSource] = useState<string | undefined>();
+  const { updateContext: updateHintContext } = useOnboardingHints();
 
   useEffect(() => {
     async function fetchDocument() {
@@ -50,6 +54,7 @@ export default function DocumentViewerPage() {
         setChunks(data.chunks || []);
         if (data.status) setStatus(data.status);
         if (data.source) setSource(data.source);
+        updateHintContext({ isFirstDocumentView: true });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load document');
       } finally {
@@ -60,7 +65,7 @@ export default function DocumentViewerPage() {
     if (documentId) {
       fetchDocument();
     }
-  }, [documentId]);
+  }, [documentId, updateHintContext]);
 
   const handleSemanticSearch = async () => {
     if (!searchQuery.trim()) {
@@ -85,7 +90,7 @@ export default function DocumentViewerPage() {
       setSearchResults(data.chunks || []);
       setViewMode('search');
     } catch (err) {
-      console.error('Semantic search error:', err);
+      logger.error('Semantic search error', { err: err as unknown });
     } finally {
       setSearching(false);
     }
@@ -221,7 +226,7 @@ export default function DocumentViewerPage() {
               )}
             </div>
             <Button variant="outline" onClick={() => router.push('/')}>
-              <FileText className="mr-2 h-4 w-4" />
+              <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Chat
             </Button>
           </>

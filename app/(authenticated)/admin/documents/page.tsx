@@ -8,6 +8,7 @@ import { ArrowLeft, Check, X, FileText, Eye } from 'lucide-react';
 import { ListEmptyState, ListLoadingState, ListErrorState } from '@/components/list-empty-state';
 import { DocumentPreview } from '@/components/document-preview';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { useLogger } from '@/hooks/use-logger';
 
 interface Document {
   id: string;
@@ -27,6 +28,7 @@ export default function AdminDocumentsPage() {
   const [previewDocId, setPreviewDocId] = useState<string | null>(null);
   const [pendingReview, setPendingReview] = useState<{ documentId: string; action: 'approve' | 'reject' } | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const logger = useLogger('admin-documents');
   const [reviewLoading, setReviewLoading] = useState(false);
 
   useEffect(() => {
@@ -71,7 +73,7 @@ export default function AdminDocumentsPage() {
       setPendingReview(null);
       setRejectionReason('');
     } catch (err) {
-      console.error('Review failed:', err);
+      logger.error('Review failed', { err: err as unknown });
     } finally {
       setReviewLoading(false);
     }

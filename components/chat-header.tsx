@@ -13,14 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, Upload, User, LogOut, Sun, Moon, FileText, Clock, Keyboard } from 'lucide-react';
+import { Upload, User, LogOut, Sun, Moon, FileText, Clock, Keyboard, MessageSquare, Search } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { DocumentUpload } from '@/components/document-upload';
 import { DocumentList } from '@/components/document-list';
-import { ConversationSidebar } from '@/components/conversation-sidebar';
 import { ModelSelector } from '@/components/model-selector';
 import { CollectionPicker } from '@/components/collection-picker';
 import { useLogger } from '@/hooks/use-logger';
@@ -49,6 +48,8 @@ interface ChatHeaderProps {
   selectedCollectionId: string | null;
   setSelectedCollectionId: (id: string | null) => void;
   onOpenShortcutsHelp?: () => void;
+  onOpenHistory?: () => void;
+  onOpenSearch?: () => void;
 }
 
 export function ChatHeader({
@@ -61,6 +62,8 @@ export function ChatHeader({
   selectedCollectionId,
   setSelectedCollectionId,
   onOpenShortcutsHelp,
+  onOpenHistory,
+  onOpenSearch,
 }: ChatHeaderProps) {
   const router = useRouter();
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -102,22 +105,31 @@ export function ChatHeader({
   return (
     <header className="border-b p-3 sm:p-4">
       <div className="mx-auto flex max-w-3xl items-center gap-2 sm:gap-4">
-        {/* Mobile hamburger */}
-        <Sheet>
-          <SheetTrigger render={(props) => (
-            <Button {...props} variant="ghost" size="icon" className="md:hidden">
-              <Menu className="h-5 w-5" />
-            </Button>
-          )} />
-          <SheetContent side="left" className="w-64 p-0">
-            <ConversationSidebar
-              currentConversationId={currentConversationId}
-              setCurrentConversationId={setCurrentConversationId}
-              selectedCollectionId={selectedCollectionId}
-              setSelectedCollectionId={setSelectedCollectionId}
-            />
-          </SheetContent>
-        </Sheet>
+        {/* History button - opens conversation drawer */}
+        {onOpenHistory && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onOpenHistory}
+            title="Conversation history"
+            className="h-9 w-9 sm:h-10 sm:w-10"
+          >
+            <MessageSquare className="h-4 w-4" />
+          </Button>
+        )}
+
+        {/* Search button - opens command palette */}
+        {onOpenSearch && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onOpenSearch}
+            title="Search (Ctrl+K)"
+            className="h-9 w-9 sm:h-10 sm:w-10"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+        )}
 
         <div className="flex-1 min-w-0">
           <h1 className="text-lg sm:text-xl font-semibold truncate">Doc Expert</h1>

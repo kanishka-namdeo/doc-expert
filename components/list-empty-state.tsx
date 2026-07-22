@@ -10,9 +10,13 @@ interface ListEmptyStateProps {
     label: string;
     onClick: () => void;
   };
+  secondaryActions?: Array<{
+    label: string;
+    onClick: () => void;
+  }>;
 }
 
-export function ListEmptyState({ message, description, icon, action }: ListEmptyStateProps) {
+export function ListEmptyState({ message, description, icon, action, secondaryActions }: ListEmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       {icon && <div className="mb-3">{icon}</div>}
@@ -24,6 +28,15 @@ export function ListEmptyState({ message, description, icon, action }: ListEmpty
         <Button variant="outline" size="sm" className="mt-4" onClick={action.onClick}>
           {action.label}
         </Button>
+      )}
+      {secondaryActions && secondaryActions.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {secondaryActions.map((sa) => (
+            <Button key={sa.label} variant="ghost" size="sm" onClick={sa.onClick}>
+              {sa.label}
+            </Button>
+          ))}
+        </div>
       )}
     </div>
   );

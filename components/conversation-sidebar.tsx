@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, Plus, Pencil, Trash2, Share2 } from 'lucide-react';
+import { MessageSquare, Plus, Pencil, Trash2, Share2, FileText, Download } from 'lucide-react';
+import { useLogger } from '@/hooks/use-logger';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -23,6 +24,7 @@ interface ConversationSidebarProps {
 }
 
 export function ConversationSidebar({ currentConversationId, setCurrentConversationId, selectedCollectionId, setSelectedCollectionId, onShare }: ConversationSidebarProps) {
+  const logger = useLogger('conversation-sidebar');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
       const data = await res.json();
       setConversations(data.conversations || []);
     } catch (err) {
-      console.error('Failed to fetch conversations:', err);
+      logger.error('Failed to fetch conversations', { err: err as unknown });
     } finally {
       setLoading(false);
     }
@@ -65,7 +67,7 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Create conversation failed:', response.status, errorText);
+        logger.error('Create conversation failed', { status: response.status, errorText });
         if (response.status === 401) {
           window.location.href = '/login';
           return;
@@ -78,7 +80,7 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
       setCurrentConversationId(newId);
       fetchConversations();
     } catch (err) {
-      console.error('Failed to create conversation:', err);
+      logger.error('Failed to create conversation', { err: err as unknown });
     }
   };
 
@@ -96,7 +98,7 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
       }
       fetchConversations();
     } catch (err) {
-      console.error('Failed to delete conversation:', err);
+      logger.error('Failed to delete conversation', { err: err as unknown, conversationId: deleteTarget });
     } finally {
       setDeleteTarget(null);
     }
@@ -117,7 +119,7 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
       setEditingId(null);
       fetchConversations();
     } catch (err) {
-      console.error('Failed to rename conversation:', err);
+      logger.error('Failed to rename conversation', { err: err as unknown, conversationId: id });
     }
   };
 
@@ -186,7 +188,7 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
                   </div>
                   {conv.collectionId && (
                     <div className="flex items-center gap-1 mt-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>
+                      <FileText className="h-2.5 w-2.5 text-muted-foreground" />
                       <span className="text-[10px] text-muted-foreground truncate">Collection</span>
                     </div>
                   )}
@@ -228,7 +230,7 @@ export function ConversationSidebar({ currentConversationId, setCurrentConversat
                       }}
                       title="Export"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                      <Download className="h-3 w-3" />
                     </Button>
                     <Button
                       variant="ghost"

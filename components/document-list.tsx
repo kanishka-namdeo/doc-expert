@@ -19,7 +19,8 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { ListEmptyState, ListErrorState, ListLoadingState } from '@/components/list-empty-state';
+import { ListEmptyState, ListErrorState } from '@/components/list-empty-state';
+import { SkeletonDocumentList } from '@/components/skeleton/skeleton-document-list';
 
 type DocumentFilter = 'owned' | 'shared-with-me' | 'shared-by-me' | 'pending';
 type DocumentSource = 'upload' | 'google-drive' | 'microsoft-365';
@@ -282,7 +283,7 @@ function DocumentListContent({
   }
 
   if (loading) {
-    return <ListLoadingState />;
+    return <SkeletonDocumentList />;
   }
 
   if (error) {
@@ -293,27 +294,34 @@ function DocumentListContent({
     const emptyConfig = {
       owned: {
         message: 'No documents yet',
-        description: 'Upload your first document to get started',
+        description: 'Upload documents or connect external sources to make them searchable with AI',
         icon: <FileText className="h-10 w-10 text-muted-foreground" />,
-        action: 'Upload Document' as const,
+        action: 'Upload document' as const,
+        secondaryActions: [
+          { label: 'Connect Google Drive', onClick: () => window.location.href = '/settings/connectors' },
+          { label: 'Connect Microsoft 365', onClick: () => window.location.href = '/settings/connectors' },
+        ],
       },
       'shared-with-me': {
         message: 'No shared documents',
         description: 'Documents that others share with you will appear here',
         icon: <FileText className="h-10 w-10 text-muted-foreground" />,
         action: undefined,
+        secondaryActions: [],
       },
       'shared-by-me': {
         message: 'No shared documents',
         description: 'Documents you have shared with others will appear here',
         icon: <FileText className="h-10 w-10 text-muted-foreground" />,
         action: undefined,
+        secondaryActions: [],
       },
       pending: {
         message: 'No pending documents',
         description: 'Documents awaiting approval will appear here',
         icon: <FileText className="h-10 w-10 text-muted-foreground" />,
         action: undefined,
+        secondaryActions: [],
       },
     };
     const cfg = emptyConfig[filter];
@@ -322,7 +330,8 @@ function DocumentListContent({
         message={cfg.message}
         description={cfg.description}
         icon={cfg.icon}
-        action={cfg.action ? { label: cfg.action, onClick: fetchDocuments } : undefined}
+        action={cfg.action ? { label: cfg.action, onClick: () => window.dispatchEvent(new CustomEvent('open-upload-dialog')) } : undefined}
+        secondaryActions={cfg.secondaryActions}
       />
     );
   }

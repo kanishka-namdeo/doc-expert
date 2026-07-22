@@ -12,7 +12,8 @@ import {
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { DocumentUpload } from '@/components/document-upload';
 import { PageHeader } from '@/components/page-header';
-import { Upload, Globe, FileText } from 'lucide-react';
+import { Upload, Globe, FileText, Cloud, FolderSync } from 'lucide-react';
+import { useOnboardingHints } from '@/hooks/use-onboarding-hints';
 
 type DocumentFilter = 'owned' | 'shared-with-me' | 'shared-by-me' | 'pending';
 type DocumentSource = 'all' | 'upload' | 'google-drive' | 'microsoft-365';
@@ -21,6 +22,7 @@ export default function DocumentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showUpload, setShowUpload] = useState(false);
+  const { updateContext: updateHintContext } = useOnboardingHints();
 
   const filterParam = (searchParams.get('filter') as DocumentFilter) || 'owned';
   const [activeFilter, setActiveFilter] = useState<DocumentFilter>(filterParam);
@@ -31,6 +33,30 @@ export default function DocumentsPage() {
     const filter = (searchParams.get('filter') as DocumentFilter) || 'owned';
     setActiveFilter(filter);
   }, [searchParams]);
+
+  // Listen for open-upload-dialog events from DocumentList empty state
+  useEffect(() => {
+    const handler = () => setShowUpload(true);
+    window.addEventListener('open-upload-dialog', handler);
+    return () => window.removeEventListener('open-upload-dialog', handler);
+  }, []);
+
+  // Check document count for hints
+  useEffect(() => {
+    async function checkDocuments() {
+      try {
+        const res = await fetch('/api/documents', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          const docCount = data.documents?.length ?? 0;
+          updateHintContext({ hasDocuments: docCount > 0, documentCount: docCount });
+        }
+      } catch {
+        // ignore
+      }
+    }
+    checkDocuments();
+  }, [updateHintContext]);
 
   const handleFilterChange = (value: string) => {
     const filter = value as DocumentFilter;
@@ -52,7 +78,7 @@ export default function DocumentsPage() {
             <DialogTrigger render={(props) => (
               <Button {...props}>
                 <Upload className="mr-2 h-4 w-4" />
-                Upload Document
+                Upload document
               </Button>
             )} />
             <DialogContent className="max-w-lg">
@@ -95,16 +121,18 @@ export default function DocumentsPage() {
               variant={activeSource === 'google-drive' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleSourceChange('google-drive')}
+              title="Google Drive documents"
             >
-              <Globe className="mr-1 h-3 w-3" />
+              <Cloud className="mr-1 h-3 w-3" />
               Google Drive
             </Button>
             <Button
               variant={activeSource === 'microsoft-365' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleSourceChange('microsoft-365')}
+              title="Microsoft 365 documents"
             >
-              <Globe className="mr-1 h-3 w-3" />
+              <FolderSync className="mr-1 h-3 w-3" />
               Microsoft 365
             </Button>
           </div>

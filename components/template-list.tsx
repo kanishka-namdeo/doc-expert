@@ -162,21 +162,33 @@ export function TemplateList() {
         )}
 
         {/* Empty state */}
-        {!loading && filtered.length === 0 && (
+        {!loading && userTemplates.length === 0 && !search && categoryFilter === 'all' && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <BookTemplate className="mb-3 h-10 w-10 text-muted-foreground" />
+            <p className="text-sm font-medium">No custom templates yet</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Save frequently asked questions as templates for quick access
+            </p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={openCreate}>
+              <Plus className="mr-2 h-3 w-3" />
+              Create template
+            </Button>
+            {systemTemplates.length > 0 && (
+              <Button variant="ghost" size="sm" className="mt-2" onClick={() => document.getElementById('system-templates')?.scrollIntoView({ behavior: 'smooth' })}>
+                Try a template
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* No results from search/filter */}
+        {!loading && filtered.length === 0 && (search || categoryFilter !== 'all') && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <BookTemplate className="mb-3 h-10 w-10 text-muted-foreground" />
             <p className="text-sm font-medium">No templates found</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {search || categoryFilter !== 'all'
-                ? 'Try adjusting your search or filter.'
-                : 'Create your first template to get started.'}
+              Try adjusting your search or filter.
             </p>
-            {!search && categoryFilter === 'all' && (
-              <Button variant="outline" size="sm" className="mt-4" onClick={openCreate}>
-                <Plus className="mr-2 h-3 w-3" />
-                Create Template
-              </Button>
-            )}
           </div>
         )}
 
@@ -238,7 +250,7 @@ export function TemplateList() {
 
         {/* System Templates */}
         {!loading && systemTemplates.length > 0 && (
-          <div>
+          <div id="system-templates">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               System Defaults
             </h3>

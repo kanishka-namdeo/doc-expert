@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ListEmptyState, ListLoadingState } from '@/components/list-empty-state';
 import { Users, Search } from 'lucide-react';
 
 interface User {
@@ -191,9 +192,9 @@ export default function AdminUsersPage() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+              <ListLoadingState message="Loading users..." />
             ) : users.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No users found</div>
+              <ListEmptyState message="No users found" description="Add users to get started" />
             ) : (
               <>
                 <div className="space-y-2">

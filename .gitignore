@@ -82,3 +82,20 @@ response.txt
 test-*.md
 test.pdf
 test_miscdoc_expert*
+
+# playwright
+/test-results/
+
+# e2e auth fixtures
+/e2e/.auth/
+
+# temporary test scripts and json fixtures
+remove-secret.*
+scripts/ui-loop.*
+group.json
+headers.txt
+lint-output.txt
+login.json
+member.json
+sso*.json
+user-update.json

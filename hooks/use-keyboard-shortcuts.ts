@@ -172,6 +172,15 @@ export function useKeyboardShortcuts({
       // Ctrl/Cmd + A: Select all (only inside command palette — handled by palette itself)
       // We intentionally do NOT intercept Ctrl+A globally to avoid breaking normal text selection.
 
+      // ?: Open shortcuts help
+      if (event.key === '?' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (!isTypingTarget(target)) {
+          event.preventDefault();
+          shortcutsRef.current.onOpenShortcutsHelp();
+          return;
+        }
+      }
+
       // Escape: Stop streaming or blur input
       if (event.key === 'Escape') {
         if (document.activeElement === inputRef.current) {

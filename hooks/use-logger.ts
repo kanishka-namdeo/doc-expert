@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -48,10 +48,10 @@ export function useLogger(module: string) {
     }
   }, [module]);
 
-  return {
+  return useMemo(() => ({
     debug: (msg: string, ctx?: Record<string, unknown>) => log('debug', msg, ctx),
     info: (msg: string, ctx?: Record<string, unknown>) => log('info', msg, ctx),
     warn: (msg: string, ctx?: Record<string, unknown>) => log('warn', msg, ctx),
     error: (msg: string, ctx?: Record<string, unknown>) => log('error', msg, ctx),
-  };
+  }), [log]);
 }
